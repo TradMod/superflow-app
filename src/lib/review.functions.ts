@@ -59,7 +59,7 @@ export const generateDaySummary = createServerFn({ method: "POST" })
       {
         user_id: context.userId,
         review_date: data.dateKey,
-        stats: data as unknown as Record<string, unknown>,
+        stats: JSON.parse(JSON.stringify(data)),
         summary: text,
       },
       { onConflict: "user_id,review_date" },
