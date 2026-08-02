@@ -14,7 +14,241 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      categories: {
+        Row: {
+          color: string
+          created_at: string
+          id: string
+          name: string
+          user_id: string
+        }
+        Insert: {
+          color?: string
+          created_at?: string
+          id?: string
+          name: string
+          user_id: string
+        }
+        Update: {
+          color?: string
+          created_at?: string
+          id?: string
+          name?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      day_reviews: {
+        Row: {
+          created_at: string
+          id: string
+          review_date: string
+          stats: Json
+          summary: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          review_date: string
+          stats?: Json
+          summary?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          review_date?: string
+          stats?: Json
+          summary?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          display_name: string | null
+          id: string
+          review_time: string
+          timezone: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          display_name?: string | null
+          id: string
+          review_time?: string
+          timezone?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          display_name?: string | null
+          id?: string
+          review_time?: string
+          timezone?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      reminders: {
+        Row: {
+          created_at: string
+          done: boolean
+          due_date: string
+          due_time: string | null
+          id: string
+          notes: string | null
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          done?: boolean
+          due_date: string
+          due_time?: string | null
+          id?: string
+          notes?: string | null
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          done?: boolean
+          due_date?: string
+          due_time?: string | null
+          id?: string
+          notes?: string | null
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      task_occurrences: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          effort: number | null
+          id: string
+          minutes_spent: number | null
+          note: string | null
+          occurrence_date: string
+          status: Database["public"]["Enums"]["occurrence_status"]
+          task_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          effort?: number | null
+          id?: string
+          minutes_spent?: number | null
+          note?: string | null
+          occurrence_date: string
+          status?: Database["public"]["Enums"]["occurrence_status"]
+          task_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          effort?: number | null
+          id?: string
+          minutes_spent?: number | null
+          note?: string | null
+          occurrence_date?: string
+          status?: Database["public"]["Enums"]["occurrence_status"]
+          task_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "task_occurrences_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tasks: {
+        Row: {
+          archived: boolean
+          category_id: string | null
+          created_at: string
+          end_date: string | null
+          end_time: string | null
+          id: string
+          is_habit: boolean
+          notes: string | null
+          priority: number
+          repeat_day_of_month: number | null
+          repeat_days: number[]
+          repeat_kind: Database["public"]["Enums"]["repeat_kind"]
+          start_date: string
+          start_time: string | null
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          archived?: boolean
+          category_id?: string | null
+          created_at?: string
+          end_date?: string | null
+          end_time?: string | null
+          id?: string
+          is_habit?: boolean
+          notes?: string | null
+          priority?: number
+          repeat_day_of_month?: number | null
+          repeat_days?: number[]
+          repeat_kind?: Database["public"]["Enums"]["repeat_kind"]
+          start_date?: string
+          start_time?: string | null
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          archived?: boolean
+          category_id?: string | null
+          created_at?: string
+          end_date?: string | null
+          end_time?: string | null
+          id?: string
+          is_habit?: boolean
+          notes?: string | null
+          priority?: number
+          repeat_day_of_month?: number | null
+          repeat_days?: number[]
+          repeat_kind?: Database["public"]["Enums"]["repeat_kind"]
+          start_date?: string
+          start_time?: string | null
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tasks_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -23,7 +257,8 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      occurrence_status: "pending" | "done" | "skipped"
+      repeat_kind: "none" | "daily" | "weekdays" | "weekly" | "monthly"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +385,9 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      occurrence_status: ["pending", "done", "skipped"],
+      repeat_kind: ["none", "daily", "weekdays", "weekly", "monthly"],
+    },
   },
 } as const
