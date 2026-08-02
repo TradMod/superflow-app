@@ -15,7 +15,7 @@ export const Route = createFileRoute("/")({
       {
         property: "og:description",
         content:
-          "Daily routines, repeating schedules, reminders, effort tracking and an AI day review in one calm app.",
+          "DayFlow keeps your routines, schedules and reminders in one place, tracks effort and time on every task, and writes you an end-of-day review with tomorrow's plan.",
       },
     ],
   }),

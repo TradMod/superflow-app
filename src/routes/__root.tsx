@@ -83,15 +83,19 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       {
         name: "description",
         content:
-          "DayFlow keeps your routines, schedules and reminders in one place and reviews every day for you.",
+          "DayFlow keeps your routines, schedules and reminders in one place, tracks effort and time on every task, and writes you an end-of-day review with tomorrow's plan.",
       },
-      { property: "og:title", content: "DayFlow" },
+      { property: "og:title", content: "DayFlow — Plan your day, track habits, review with AI" },
       {
         property: "og:description",
-        content: "Routines, schedules, reminders and an AI day review in one calm app.",
+        content: "DayFlow keeps your routines, schedules and reminders in one place, tracks effort and time on every task, and writes you an end-of-day review with tomorrow's plan.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
+      { name: "twitter:title", content: "DayFlow — Plan your day, track habits, review with AI" },
+      { name: "twitter:description", content: "DayFlow keeps your routines, schedules and reminders in one place, tracks effort and time on every task, and writes you an end-of-day review with tomorrow's plan." },
+      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/07a926ef-2278-4bdd-b17c-c89ae6aefddb/id-preview-bd3b74dd--109f89df-5230-49d9-b2ec-66b69a2065a5.lovable.app-1785690335389.png" },
+      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/07a926ef-2278-4bdd-b17c-c89ae6aefddb/id-preview-bd3b74dd--109f89df-5230-49d9-b2ec-66b69a2065a5.lovable.app-1785690335389.png" },
     ],
     links: [
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
