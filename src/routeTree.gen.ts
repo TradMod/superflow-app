@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedCalendarRouteImport } from './routes/_authenticated/calendar'
+import { Route as AuthenticatedInsightsRouteImport } from './routes/_authenticated/insights'
 import { Route as AuthenticatedPlanRouteImport } from './routes/_authenticated/plan'
 import { Route as AuthenticatedRemindersRouteImport } from './routes/_authenticated/reminders'
 import { Route as AuthenticatedReviewRouteImport } from './routes/_authenticated/review'
@@ -35,6 +36,11 @@ const AuthRoute = AuthRouteImport.update({
 const AuthenticatedCalendarRoute = AuthenticatedCalendarRouteImport.update({
   id: '/calendar',
   path: '/calendar',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedInsightsRoute = AuthenticatedInsightsRouteImport.update({
+  id: '/insights',
+  path: '/insights',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedPlanRoute = AuthenticatedPlanRouteImport.update({
@@ -62,6 +68,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/calendar': typeof AuthenticatedCalendarRoute
+  '/insights': typeof AuthenticatedInsightsRoute
   '/plan': typeof AuthenticatedPlanRoute
   '/reminders': typeof AuthenticatedRemindersRoute
   '/review': typeof AuthenticatedReviewRoute
@@ -71,6 +78,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/calendar': typeof AuthenticatedCalendarRoute
+  '/insights': typeof AuthenticatedInsightsRoute
   '/plan': typeof AuthenticatedPlanRoute
   '/reminders': typeof AuthenticatedRemindersRoute
   '/review': typeof AuthenticatedReviewRoute
@@ -82,6 +90,7 @@ export interface FileRoutesById {
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
   '/_authenticated/calendar': typeof AuthenticatedCalendarRoute
+  '/_authenticated/insights': typeof AuthenticatedInsightsRoute
   '/_authenticated/plan': typeof AuthenticatedPlanRoute
   '/_authenticated/reminders': typeof AuthenticatedRemindersRoute
   '/_authenticated/review': typeof AuthenticatedReviewRoute
@@ -90,16 +99,31 @@ export interface FileRoutesById {
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
-    '/' | '/auth' | '/calendar' | '/plan' | '/reminders' | '/review' | '/today'
+    | '/'
+    | '/auth'
+    | '/calendar'
+    | '/insights'
+    | '/plan'
+    | '/reminders'
+    | '/review'
+    | '/today'
   fileRoutesByTo: FileRoutesByTo
   to:
-    '/' | '/auth' | '/calendar' | '/plan' | '/reminders' | '/review' | '/today'
+    | '/'
+    | '/auth'
+    | '/calendar'
+    | '/insights'
+    | '/plan'
+    | '/reminders'
+    | '/review'
+    | '/today'
   id:
     | '__root__'
     | '/'
     | '/_authenticated'
     | '/auth'
     | '/_authenticated/calendar'
+    | '/_authenticated/insights'
     | '/_authenticated/plan'
     | '/_authenticated/reminders'
     | '/_authenticated/review'
@@ -142,6 +166,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedCalendarRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/insights': {
+      id: '/_authenticated/insights'
+      path: '/insights'
+      fullPath: '/insights'
+      preLoaderRoute: typeof AuthenticatedInsightsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/plan': {
       id: '/_authenticated/plan'
       path: '/plan'
@@ -175,6 +206,7 @@ declare module '@tanstack/react-router' {
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedCalendarRoute: typeof AuthenticatedCalendarRoute
+  AuthenticatedInsightsRoute: typeof AuthenticatedInsightsRoute
   AuthenticatedPlanRoute: typeof AuthenticatedPlanRoute
   AuthenticatedRemindersRoute: typeof AuthenticatedRemindersRoute
   AuthenticatedReviewRoute: typeof AuthenticatedReviewRoute
@@ -183,6 +215,7 @@ interface AuthenticatedRouteRouteChildren {
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedCalendarRoute: AuthenticatedCalendarRoute,
+  AuthenticatedInsightsRoute: AuthenticatedInsightsRoute,
   AuthenticatedPlanRoute: AuthenticatedPlanRoute,
   AuthenticatedRemindersRoute: AuthenticatedRemindersRoute,
   AuthenticatedReviewRoute: AuthenticatedReviewRoute,
