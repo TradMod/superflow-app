@@ -1,6 +1,16 @@
 import { queryOptions } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import type { Category, Occurrence, Reminder, Task } from "./dayflow";
+import type {
+  Category,
+  Goal,
+  GoalMilestone,
+  Occurrence,
+  OverrideWithTasks,
+  PeriodKind,
+  Reminder,
+  Task,
+} from "./dayflow";
+
 
 export const categoriesQuery = () =>
   queryOptions({
