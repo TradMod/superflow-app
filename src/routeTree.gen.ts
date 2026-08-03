@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedCalendarRouteImport } from './routes/_authenticated/calendar'
+import { Route as AuthenticatedGoalsRouteImport } from './routes/_authenticated/goals'
 import { Route as AuthenticatedInsightsRouteImport } from './routes/_authenticated/insights'
 import { Route as AuthenticatedPlanRouteImport } from './routes/_authenticated/plan'
 import { Route as AuthenticatedRemindersRouteImport } from './routes/_authenticated/reminders'
@@ -37,6 +38,11 @@ const AuthRoute = AuthRouteImport.update({
 const AuthenticatedCalendarRoute = AuthenticatedCalendarRouteImport.update({
   id: '/calendar',
   path: '/calendar',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedGoalsRoute = AuthenticatedGoalsRouteImport.update({
+  id: '/goals',
+  path: '/goals',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedInsightsRoute = AuthenticatedInsightsRouteImport.update({
@@ -74,6 +80,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/calendar': typeof AuthenticatedCalendarRoute
+  '/goals': typeof AuthenticatedGoalsRoute
   '/insights': typeof AuthenticatedInsightsRoute
   '/plan': typeof AuthenticatedPlanRoute
   '/reminders': typeof AuthenticatedRemindersRoute
@@ -85,6 +92,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/calendar': typeof AuthenticatedCalendarRoute
+  '/goals': typeof AuthenticatedGoalsRoute
   '/insights': typeof AuthenticatedInsightsRoute
   '/plan': typeof AuthenticatedPlanRoute
   '/reminders': typeof AuthenticatedRemindersRoute
@@ -98,6 +106,7 @@ export interface FileRoutesById {
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
   '/_authenticated/calendar': typeof AuthenticatedCalendarRoute
+  '/_authenticated/goals': typeof AuthenticatedGoalsRoute
   '/_authenticated/insights': typeof AuthenticatedInsightsRoute
   '/_authenticated/plan': typeof AuthenticatedPlanRoute
   '/_authenticated/reminders': typeof AuthenticatedRemindersRoute
@@ -111,6 +120,7 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/calendar'
+    | '/goals'
     | '/insights'
     | '/plan'
     | '/reminders'
@@ -122,6 +132,7 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/calendar'
+    | '/goals'
     | '/insights'
     | '/plan'
     | '/reminders'
@@ -134,6 +145,7 @@ export interface FileRouteTypes {
     | '/_authenticated'
     | '/auth'
     | '/_authenticated/calendar'
+    | '/_authenticated/goals'
     | '/_authenticated/insights'
     | '/_authenticated/plan'
     | '/_authenticated/reminders'
@@ -176,6 +188,13 @@ declare module '@tanstack/react-router' {
       path: '/calendar'
       fullPath: '/calendar'
       preLoaderRoute: typeof AuthenticatedCalendarRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/goals': {
+      id: '/_authenticated/goals'
+      path: '/goals'
+      fullPath: '/goals'
+      preLoaderRoute: typeof AuthenticatedGoalsRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/insights': {
@@ -225,6 +244,7 @@ declare module '@tanstack/react-router' {
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedCalendarRoute: typeof AuthenticatedCalendarRoute
+  AuthenticatedGoalsRoute: typeof AuthenticatedGoalsRoute
   AuthenticatedInsightsRoute: typeof AuthenticatedInsightsRoute
   AuthenticatedPlanRoute: typeof AuthenticatedPlanRoute
   AuthenticatedRemindersRoute: typeof AuthenticatedRemindersRoute
@@ -235,6 +255,7 @@ interface AuthenticatedRouteRouteChildren {
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedCalendarRoute: AuthenticatedCalendarRoute,
+  AuthenticatedGoalsRoute: AuthenticatedGoalsRoute,
   AuthenticatedInsightsRoute: AuthenticatedInsightsRoute,
   AuthenticatedPlanRoute: AuthenticatedPlanRoute,
   AuthenticatedRemindersRoute: AuthenticatedRemindersRoute,

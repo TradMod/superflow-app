@@ -160,10 +160,14 @@ function GoalsPage() {
   });
 
   const patchGoal = useMutation({
-    mutationFn: async (input: { id: string; values: Record<string, unknown> }) => {
+    mutationFn: async (input: {
+      id: string;
+      values: { current_value?: number; status?: "active" | "achieved" | "archived" };
+    }) => {
       const { error } = await supabase.from("goals").update(input.values).eq("id", input.id);
       if (error) throw error;
     },
+
     onSuccess: invalidate,
     onError: (e: Error) => toast.error(e.message),
   });
