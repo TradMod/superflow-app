@@ -68,6 +68,136 @@ export type Database = {
         }
         Relationships: []
       }
+      goal_milestones: {
+        Row: {
+          created_at: string
+          done: boolean
+          goal_id: string
+          id: string
+          position: number
+          title: string
+        }
+        Insert: {
+          created_at?: string
+          done?: boolean
+          goal_id: string
+          id?: string
+          position?: number
+          title: string
+        }
+        Update: {
+          created_at?: string
+          done?: boolean
+          goal_id?: string
+          id?: string
+          position?: number
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "goal_milestones_goal_id_fkey"
+            columns: ["goal_id"]
+            isOneToOne: false
+            referencedRelation: "goals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      goals: {
+        Row: {
+          category_id: string | null
+          created_at: string
+          current_value: number
+          id: string
+          notes: string | null
+          period: Database["public"]["Enums"]["goal_period"]
+          start_date: string
+          status: Database["public"]["Enums"]["goal_status"]
+          target_date: string
+          target_value: number
+          title: string
+          tracking: Database["public"]["Enums"]["goal_tracking"]
+          unit: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          category_id?: string | null
+          created_at?: string
+          current_value?: number
+          id?: string
+          notes?: string | null
+          period?: Database["public"]["Enums"]["goal_period"]
+          start_date?: string
+          status?: Database["public"]["Enums"]["goal_status"]
+          target_date: string
+          target_value?: number
+          title: string
+          tracking?: Database["public"]["Enums"]["goal_tracking"]
+          unit?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          category_id?: string | null
+          created_at?: string
+          current_value?: number
+          id?: string
+          notes?: string | null
+          period?: Database["public"]["Enums"]["goal_period"]
+          start_date?: string
+          status?: Database["public"]["Enums"]["goal_status"]
+          target_date?: string
+          target_value?: number
+          title?: string
+          tracking?: Database["public"]["Enums"]["goal_tracking"]
+          unit?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "goals_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      period_reviews: {
+        Row: {
+          created_at: string
+          id: string
+          period: Database["public"]["Enums"]["review_period"]
+          period_start: string
+          stats: Json
+          summary: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          period: Database["public"]["Enums"]["review_period"]
+          period_start: string
+          stats?: Json
+          summary?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          period?: Database["public"]["Enums"]["review_period"]
+          period_start?: string
+          stats?: Json
+          summary?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string
@@ -125,6 +255,84 @@ export type Database = {
           due_time?: string | null
           id?: string
           notes?: string | null
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      schedule_override_tasks: {
+        Row: {
+          created_at: string
+          id: string
+          override_id: string
+          task_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          override_id: string
+          task_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          override_id?: string
+          task_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "schedule_override_tasks_override_id_fkey"
+            columns: ["override_id"]
+            isOneToOne: false
+            referencedRelation: "schedule_overrides"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "schedule_override_tasks_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      schedule_overrides: {
+        Row: {
+          created_at: string
+          end_date: string
+          end_time: string | null
+          excuse_all: boolean
+          id: string
+          notes: string | null
+          start_date: string
+          start_time: string | null
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          end_date: string
+          end_time?: string | null
+          excuse_all?: boolean
+          id?: string
+          notes?: string | null
+          start_date: string
+          start_time?: string | null
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          end_date?: string
+          end_time?: string | null
+          excuse_all?: boolean
+          id?: string
+          notes?: string | null
+          start_date?: string
+          start_time?: string | null
           title?: string
           updated_at?: string
           user_id?: string
@@ -257,8 +465,12 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
+      goal_period: "weekly" | "monthly" | "yearly"
+      goal_status: "active" | "achieved" | "archived"
+      goal_tracking: "numeric" | "checklist"
       occurrence_status: "pending" | "done" | "skipped"
       repeat_kind: "none" | "daily" | "weekdays" | "weekly" | "monthly"
+      review_period: "day" | "week" | "month"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -386,8 +598,12 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      goal_period: ["weekly", "monthly", "yearly"],
+      goal_status: ["active", "achieved", "archived"],
+      goal_tracking: ["numeric", "checklist"],
       occurrence_status: ["pending", "done", "skipped"],
       repeat_kind: ["none", "daily", "weekdays", "weekly", "monthly"],
+      review_period: ["day", "week", "month"],
     },
   },
 } as const

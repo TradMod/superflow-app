@@ -1,6 +1,16 @@
 import { queryOptions } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import type { Category, Occurrence, Reminder, Task } from "./dayflow";
+import type {
+  Category,
+  Goal,
+  GoalMilestone,
+  Occurrence,
+  OverrideWithTasks,
+  PeriodKind,
+  Reminder,
+  Task,
+} from "./dayflow";
+
 
 export const categoriesQuery = () =>
   queryOptions({
@@ -78,8 +88,61 @@ export const dayReviewQuery = (dateKey: string) =>
     },
   });
 
+export const overridesQuery = () =>
+  queryOptions({
+    queryKey: ["overrides"],
+    queryFn: async (): Promise<OverrideWithTasks[]> => {
+      const [{ data: rows, error }, { data: links, error: linkError }] = await Promise.all([
+        supabase.from("schedule_overrides").select("*").order("start_date"),
+        supabase.from("schedule_override_tasks").select("*"),
+      ]);
+      if (error) throw error;
+      if (linkError) throw linkError;
+      return (rows ?? []).map((row) => ({
+        ...row,
+        task_ids: (links ?? []).filter((l) => l.override_id === row.id).map((l) => l.task_id),
+      }));
+    },
+  });
+
+export const goalsQuery = () =>
+  queryOptions({
+    queryKey: ["goals"],
+    queryFn: async (): Promise<Goal[]> => {
+      const { data, error } = await supabase.from("goals").select("*").order("target_date");
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
+export const goalMilestonesQuery = () =>
+  queryOptions({
+    queryKey: ["goal_milestones"],
+    queryFn: async (): Promise<GoalMilestone[]> => {
+      const { data, error } = await supabase.from("goal_milestones").select("*").order("position");
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
+export const periodReviewQuery = (period: PeriodKind, periodStart: string) =>
+  queryOptions({
+    queryKey: ["period_review", period, periodStart],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("period_reviews")
+        .select("*")
+        .eq("period", period)
+        .eq("period_start", periodStart)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+  });
+
 export async function currentUserId(): Promise<string> {
   const { data, error } = await supabase.auth.getUser();
   if (error || !data.user) throw new Error("Not signed in");
   return data.user.id;
 }
+

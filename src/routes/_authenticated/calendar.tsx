@@ -5,7 +5,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { occurrencesQuery, remindersQuery, tasksQuery } from "@/lib/queries";
+import { occurrencesQuery, overridesQuery, remindersQuery, tasksQuery } from "@/lib/queries";
 import { buildDay, formatTime, fromDateKey, toDateKey, todayKey } from "@/lib/dayflow";
 
 export const Route = createFileRoute("/_authenticated/calendar")({
@@ -34,6 +34,7 @@ function CalendarPage() {
   const tasks = useQuery(tasksQuery());
   const occurrences = useQuery(occurrencesQuery(monthStart, monthEnd));
   const reminders = useQuery(remindersQuery());
+  const overrides = useQuery(overridesQuery());
 
   const days = useMemo(() => {
     const first = new Date(cursor.getFullYear(), cursor.getMonth(), 1);
@@ -46,7 +47,7 @@ function CalendarPage() {
     return cells;
   }, [cursor]);
 
-  const selectedItems = buildDay(tasks.data ?? [], occurrences.data ?? [], selected);
+  const selectedItems = buildDay(tasks.data ?? [], occurrences.data ?? [], selected, overrides.data ?? []);
   const selectedReminders = (reminders.data ?? []).filter((r) => r.due_date === selected);
 
   return (
@@ -81,7 +82,7 @@ function CalendarPage() {
       <div className="mt-1 grid grid-cols-7 gap-1">
         {days.map((key, i) => {
           if (!key) return <span key={`e${i}`} />;
-          const count = buildDay(tasks.data ?? [], occurrences.data ?? [], key).length;
+          const count = buildDay(tasks.data ?? [], occurrences.data ?? [], key, overrides.data ?? []).length;
           const hasReminder = (reminders.data ?? []).some((r) => r.due_date === key && !r.done);
           return (
             <button
