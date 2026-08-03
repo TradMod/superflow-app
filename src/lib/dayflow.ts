@@ -73,18 +73,49 @@ export function taskOccursOn(task: Task, dateKey: string): boolean {
   }
 }
 
+export type Override = Tables<"schedule_overrides">;
+export type OverrideWithTasks = Override & { task_ids: string[] };
+
+/** Overrides (events) covering a given date. */
+export function overridesOn(overrides: OverrideWithTasks[], dateKey: string): OverrideWithTasks[] {
+  return overrides.filter((o) => dateKey >= o.start_date && dateKey <= o.end_date);
+}
+
+/**
+ * Is this task excused on this date by an event?
+ * Full-day events excuse whatever they cover; time-window events only excuse
+ * tasks scheduled to start inside the window.
+ */
+export function isExcused(task: Task, dateKey: string, overrides: OverrideWithTasks[]): boolean {
+  for (const o of overridesOn(overrides, dateKey)) {
+    if (!o.excuse_all && !o.task_ids.includes(task.id)) continue;
+    if (o.start_time && o.end_time) {
+      const t = task.start_time?.slice(0, 5);
+      if (!t) continue;
+      if (t < o.start_time.slice(0, 5) || t >= o.end_time.slice(0, 5)) continue;
+    }
+    return true;
+  }
+  return false;
+}
+
 export type DayItem = {
   task: Task;
   occurrence: Occurrence | null;
   status: "pending" | "done" | "skipped";
 };
 
-export function buildDay(tasks: Task[], occurrences: Occurrence[], dateKey: string): DayItem[] {
+export function buildDay(
+  tasks: Task[],
+  occurrences: Occurrence[],
+  dateKey: string,
+  overrides: OverrideWithTasks[] = [],
+): DayItem[] {
   const byTask = new Map(
     occurrences.filter((o) => o.occurrence_date === dateKey).map((o) => [o.task_id, o]),
   );
   return tasks
-    .filter((t) => taskOccursOn(t, dateKey))
+    .filter((t) => taskOccursOn(t, dateKey) && !isExcused(t, dateKey, overrides))
     .map((task) => {
       const occurrence = byTask.get(task.id) ?? null;
       return {
@@ -155,8 +186,16 @@ export function computeDayStats(
   };
 }
 
-/** Consecutive days up to and including `dateKey` where the habit was completed. */
-export function computeStreak(task: Task, occurrences: Occurrence[], dateKey: string): number {
+/**
+ * Consecutive days up to and including `dateKey` where the habit was completed.
+ * Days excused by an event are skipped rather than breaking the streak.
+ */
+export function computeStreak(
+  task: Task,
+  occurrences: Occurrence[],
+  dateKey: string,
+  overrides: OverrideWithTasks[] = [],
+): number {
   const doneDates = new Set(
     occurrences
       .filter((o) => o.task_id === task.id && o.status === "done")
@@ -165,7 +204,7 @@ export function computeStreak(task: Task, occurrences: Occurrence[], dateKey: st
   let streak = 0;
   let cursor = dateKey;
   for (let i = 0; i < 400; i++) {
-    if (!taskOccursOn(task, cursor)) {
+    if (!taskOccursOn(task, cursor) || isExcused(task, cursor, overrides)) {
       cursor = addDays(cursor, -1);
       if (cursor < task.start_date) break;
       continue;
@@ -184,3 +223,243 @@ export function computeStreak(task: Task, occurrences: Occurrence[], dateKey: st
   }
   return streak;
 }
+
+/* ---------------- Periods (day / week / month) ---------------- */
+
+export const PERIODS = ["day", "week", "month"] as const;
+export type PeriodKind = (typeof PERIODS)[number];
+
+/** Monday-based start of week. */
+export function startOfWeek(dateKey: string): string {
+  const d = fromDateKey(dateKey);
+  const dow = (d.getDay() + 6) % 7;
+  return addDays(dateKey, -dow);
+}
+
+export function startOfMonth(dateKey: string): string {
+  return `${dateKey.slice(0, 7)}-01`;
+}
+
+export function endOfMonth(dateKey: string): string {
+  const d = fromDateKey(dateKey);
+  return toDateKey(new Date(d.getFullYear(), d.getMonth() + 1, 0));
+}
+
+export function periodRange(period: PeriodKind, anchor: string): { start: string; end: string } {
+  if (period === "day") return { start: anchor, end: anchor };
+  if (period === "week") {
+    const start = startOfWeek(anchor);
+    return { start, end: addDays(start, 6) };
+  }
+  return { start: startOfMonth(anchor), end: endOfMonth(anchor) };
+}
+
+export function datesBetween(start: string, end: string): string[] {
+  const out: string[] = [];
+  let cursor = start;
+  while (cursor <= end && out.length < 400) {
+    out.push(cursor);
+    cursor = addDays(cursor, 1);
+  }
+  return out;
+}
+
+export function periodLabel(period: PeriodKind, start: string, end: string): string {
+  if (period === "day") {
+    return fromDateKey(start).toLocaleDateString(undefined, {
+      weekday: "long",
+      month: "long",
+      day: "numeric",
+    });
+  }
+  if (period === "month") {
+    return fromDateKey(start).toLocaleDateString(undefined, { month: "long", year: "numeric" });
+  }
+  const fmt = (k: string) =>
+    fromDateKey(k).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  return `${fmt(start)} – ${fmt(end)}`;
+}
+
+export type RangeStats = {
+  period: PeriodKind;
+  start: string;
+  end: string;
+  label: string;
+  planned: number;
+  done: number;
+  skipped: number;
+  completionRate: number;
+  minutes: number;
+  avgEffort: number | null;
+  excusedDays: number;
+  byCategory: { name: string; minutes: number; done: number }[];
+  perDay: { dateKey: string; planned: number; done: number; completionRate: number; minutes: number }[];
+  habits: { title: string; done: number; scheduled: number; rate: number }[];
+  bestDay: string | null;
+  worstDay: string | null;
+  events: string[];
+  completed: string[];
+  missed: string[];
+};
+
+export function computeRangeStats(input: {
+  period: PeriodKind;
+  start: string;
+  end: string;
+  tasks: Task[];
+  occurrences: Occurrence[];
+  categories: Category[];
+  overrides: OverrideWithTasks[];
+}): RangeStats {
+  const { period, start, end, tasks, occurrences, categories, overrides } = input;
+  const dates = datesBetween(start, end);
+  const today = todayKey();
+  const inPast = dates.filter((d) => d <= today);
+
+  const perDay: RangeStats["perDay"] = [];
+  const catMap = new Map<string, { name: string; minutes: number; done: number }>();
+  const completed: string[] = [];
+  const missed: string[] = [];
+  let planned = 0;
+  let done = 0;
+  let skipped = 0;
+  let minutes = 0;
+  const efforts: number[] = [];
+
+  for (const dateKey of inPast) {
+    const items = buildDay(tasks, occurrences, dateKey, overrides);
+    const stats = computeDayStats(items, categories, dateKey);
+    perDay.push({
+      dateKey,
+      planned: stats.planned,
+      done: stats.done,
+      completionRate: stats.completionRate,
+      minutes: stats.minutes,
+    });
+    planned += stats.planned;
+    done += stats.done;
+    skipped += stats.skipped;
+    minutes += stats.minutes;
+    for (const item of items) {
+      if (typeof item.occurrence?.effort === "number") efforts.push(item.occurrence.effort);
+    }
+    for (const c of stats.byCategory) {
+      const entry = catMap.get(c.name) ?? { name: c.name, minutes: 0, done: 0 };
+      entry.minutes += c.minutes;
+      entry.done += c.done;
+      catMap.set(c.name, entry);
+    }
+    completed.push(...stats.completed);
+    missed.push(...stats.missed);
+  }
+
+  const habits = tasks
+    .filter((t) => t.is_habit)
+    .map((t) => {
+      const scheduledDays = inPast.filter(
+        (d) => taskOccursOn(t, d) && !isExcused(t, d, overrides),
+      );
+      const doneDays = scheduledDays.filter((d) =>
+        occurrences.some(
+          (o) => o.task_id === t.id && o.occurrence_date === d && o.status === "done",
+        ),
+      );
+      return {
+        title: t.title,
+        done: doneDays.length,
+        scheduled: scheduledDays.length,
+        rate: scheduledDays.length === 0 ? 0 : Math.round((doneDays.length / scheduledDays.length) * 100),
+      };
+    })
+    .filter((h) => h.scheduled > 0)
+    .sort((a, b) => b.rate - a.rate);
+
+  const rated = perDay.filter((d) => d.planned > 0);
+  const best = rated.reduce<RangeStats["perDay"][number] | null>(
+    (acc, d) => (!acc || d.completionRate > acc.completionRate ? d : acc),
+    null,
+  );
+  const worst = rated.reduce<RangeStats["perDay"][number] | null>(
+    (acc, d) => (!acc || d.completionRate < acc.completionRate ? d : acc),
+    null,
+  );
+
+  const excusedDays = dates.filter((d) => overridesOn(overrides, d).length > 0).length;
+  const events = [
+    ...new Set(
+      overrides.filter((o) => o.start_date <= end && o.end_date >= start).map((o) => o.title),
+    ),
+  ];
+
+  const uniq = (list: string[]) => [...new Set(list)];
+
+  return {
+    period,
+    start,
+    end,
+    label: periodLabel(period, start, end),
+    planned,
+    done,
+    skipped,
+    completionRate: planned === 0 ? 0 : Math.round((done / planned) * 100),
+    minutes,
+    avgEffort: efforts.length
+      ? Math.round((efforts.reduce((a, b) => a + b, 0) / efforts.length) * 10) / 10
+      : null,
+    excusedDays,
+    byCategory: [...catMap.values()].sort((a, b) => b.minutes - a.minutes),
+    perDay,
+    habits,
+    bestDay: best?.dateKey ?? null,
+    worstDay: worst?.dateKey ?? null,
+    events,
+    completed: uniq(completed).slice(0, 60),
+    missed: uniq(missed).slice(0, 60),
+  };
+}
+
+/* ---------------- Goals ---------------- */
+
+export type Goal = Tables<"goals">;
+export type GoalMilestone = Tables<"goal_milestones">;
+
+export const GOAL_PERIODS = ["weekly", "monthly", "yearly"] as const;
+export type GoalPeriod = (typeof GOAL_PERIODS)[number];
+
+export const GOAL_PERIOD_LABEL: Record<GoalPeriod, string> = {
+  weekly: "This week",
+  monthly: "This month",
+  yearly: "This year",
+};
+
+export function goalProgress(goal: Goal, milestones: GoalMilestone[]): number {
+  if (goal.tracking === "checklist") {
+    const mine = milestones.filter((m) => m.goal_id === goal.id);
+    if (mine.length === 0) return 0;
+    return Math.round((mine.filter((m) => m.done).length / mine.length) * 100);
+  }
+  const target = Number(goal.target_value) || 1;
+  return Math.max(0, Math.min(100, Math.round((Number(goal.current_value) / target) * 100)));
+}
+
+export function daysLeft(targetDate: string): number {
+  const ms = fromDateKey(targetDate).getTime() - fromDateKey(todayKey()).getTime();
+  return Math.round(ms / 86400000);
+}
+
+export function goalPace(goal: Goal, progress: number): "done" | "on track" | "behind" {
+  if (progress >= 100 || goal.status === "achieved") return "done";
+  const total = Math.max(
+    1,
+    Math.round(
+      (fromDateKey(goal.target_date).getTime() - fromDateKey(goal.start_date).getTime()) / 86400000,
+    ),
+  );
+  const elapsed = Math.max(
+    0,
+    Math.round((fromDateKey(todayKey()).getTime() - fromDateKey(goal.start_date).getTime()) / 86400000),
+  );
+  const expected = Math.min(100, Math.round((elapsed / total) * 100));
+  return progress + 5 >= expected ? "on track" : "behind";
+}
+
