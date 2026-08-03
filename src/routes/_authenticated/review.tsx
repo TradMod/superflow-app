@@ -1,58 +1,99 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { AppShell } from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
-import { categoriesQuery, dayReviewQuery, occurrencesQuery, tasksQuery } from "@/lib/queries";
-import { generateDaySummary } from "@/lib/review.functions";
-import { addDays, buildDay, computeDayStats, computeStreak, todayKey } from "@/lib/dayflow";
+import { Badge } from "@/components/ui/badge";
+import {
+  categoriesQuery,
+  occurrencesQuery,
+  overridesQuery,
+  periodReviewQuery,
+  remindersQuery,
+  tasksQuery,
+} from "@/lib/queries";
+import { generatePeriodSummary } from "@/lib/review.functions";
+import {
+  addDays,
+  buildDay,
+  computeRangeStats,
+  computeStreak,
+  formatTime,
+  fromDateKey,
+  periodRange,
+  PERIODS,
+  todayKey,
+  type PeriodKind,
+} from "@/lib/dayflow";
 
 export const Route = createFileRoute("/_authenticated/review")({
   head: () => ({
     meta: [
-      { title: "Day review — DayFlow" },
-      { name: "description", content: "An honest end-of-day review and a preview of tomorrow." },
-      { property: "og:title", content: "Day review — DayFlow" },
-      { property: "og:description", content: "An honest end-of-day review and a preview of tomorrow." },
+      { title: "Reviews — DayFlow" },
+      { name: "description", content: "Daily, weekly and monthly AI reviews of how your time went." },
+      { property: "og:title", content: "Reviews — DayFlow" },
+      {
+        property: "og:description",
+        content: "Daily, weekly and monthly AI reviews of how your time went.",
+      },
     ],
   }),
   component: ReviewPage,
 });
 
+const PERIOD_LABEL: Record<PeriodKind, string> = { day: "Day", week: "Week", month: "Month" };
+
 function ReviewPage() {
   const qc = useQueryClient();
   const today = todayKey();
   const tomorrow = addDays(today, 1);
+  const [period, setPeriod] = useState<PeriodKind>("day");
+  const range = useMemo(() => periodRange(period, today), [period, today]);
 
   const tasks = useQuery(tasksQuery());
-  const occurrences = useQuery(occurrencesQuery(addDays(today, -60), today));
+  const occurrences = useQuery(occurrencesQuery(addDays(range.start, -60), range.end));
   const categories = useQuery(categoriesQuery());
-  const review = useQuery(dayReviewQuery(today));
-  const summarize = useServerFn(generateDaySummary);
+  const overrides = useQuery(overridesQuery());
+  const reminders = useQuery(remindersQuery());
+  const review = useQuery(periodReviewQuery(period, range.start));
+  const summarize = useServerFn(generatePeriodSummary);
 
-  const items = useMemo(
-    () => buildDay(tasks.data ?? [], occurrences.data ?? [], today),
-    [tasks.data, occurrences.data, today],
-  );
   const stats = useMemo(
-    () => computeDayStats(items, categories.data ?? [], today),
-    [items, categories.data, today],
+    () =>
+      computeRangeStats({
+        period,
+        start: range.start,
+        end: range.end,
+        tasks: tasks.data ?? [],
+        occurrences: occurrences.data ?? [],
+        categories: categories.data ?? [],
+        overrides: overrides.data ?? [],
+      }),
+    [period, range, tasks.data, occurrences.data, categories.data, overrides.data],
   );
+
   const tomorrowItems = useMemo(
-    () => buildDay(tasks.data ?? [], [], tomorrow),
-    [tasks.data, tomorrow],
+    () => buildDay(tasks.data ?? [], [], tomorrow, overrides.data ?? []),
+    [tasks.data, overrides.data, tomorrow],
+  );
+  const tomorrowReminders = useMemo(
+    () => (reminders.data ?? []).filter((r) => !r.done && r.due_date === tomorrow),
+    [reminders.data, tomorrow],
   );
   const streaks = useMemo(
     () =>
       (tasks.data ?? [])
         .filter((t) => t.is_habit)
-        .map((t) => ({ title: t.title, days: computeStreak(t, occurrences.data ?? [], today) }))
+        .map((t) => ({
+          title: t.title,
+          days: computeStreak(t, occurrences.data ?? [], today, overrides.data ?? []),
+        }))
         .filter((s) => s.days > 0)
         .sort((a, b) => b.days - a.days),
-    [tasks.data, occurrences.data, today],
+    [tasks.data, occurrences.data, overrides.data, today],
   );
 
   const generate = useMutation({
@@ -60,18 +101,37 @@ function ReviewPage() {
       summarize({
         data: {
           ...stats,
-          completed: stats.completed.slice(0, 60),
-          missed: stats.missed.slice(0, 60),
-          tomorrow: tomorrowItems.map((i) => i.task.title).slice(0, 60),
+          periodStart: range.start,
+          tomorrowTasks: tomorrowItems.map((i) => i.task.title).slice(0, 60),
+          tomorrowReminders: tomorrowReminders.map((r) => r.title).slice(0, 60),
           streaks: streaks.slice(0, 30),
         },
       }),
-    onSuccess: () => void qc.invalidateQueries({ queryKey: ["day_review", today] }),
+    onSuccess: () =>
+      void qc.invalidateQueries({ queryKey: ["period_review", period, range.start] }),
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const fmtDay = (key: string | null) =>
+    key ? fromDateKey(key).toLocaleDateString(undefined, { weekday: "short", day: "numeric" }) : "—";
+
   return (
-    <AppShell title="Day review" subtitle="How today went, and what's on the table tomorrow">
+    <AppShell title="Reviews" subtitle={stats.label}>
+      <div className="mb-5 inline-flex rounded-xl border border-border bg-card p-1">
+        {PERIODS.map((p) => (
+          <button
+            key={p}
+            type="button"
+            onClick={() => setPeriod(p)}
+            className={`rounded-lg px-4 py-1.5 text-sm font-medium transition-colors ${
+              period === p ? "bg-primary text-primary-foreground" : "text-muted-foreground"
+            }`}
+          >
+            {PERIOD_LABEL[p]}
+          </button>
+        ))}
+      </div>
+
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         {[
           { label: "Completed", value: `${stats.done}/${stats.planned}` },
@@ -85,6 +145,41 @@ function ReviewPage() {
           </div>
         ))}
       </div>
+
+      {stats.events.length > 0 && (
+        <div className="mt-4 rounded-2xl border border-primary/30 bg-primary/5 p-4 text-sm">
+          <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-primary">
+            Events in this period
+          </p>
+          <p>
+            {stats.events.join(", ")} · {stats.excusedDays} day
+            {stats.excusedDays === 1 ? "" : "s"} excused — streaks are protected.
+          </p>
+        </div>
+      )}
+
+      {period !== "day" && stats.perDay.length > 0 && (
+        <div className="mt-4 rounded-2xl border border-border bg-card p-5">
+          <h2 className="mb-3 text-sm font-semibold uppercase tracking-widest text-muted-foreground">
+            Day by day
+          </h2>
+          <div className="flex items-end gap-1">
+            {stats.perDay.map((d) => (
+              <div key={d.dateKey} className="flex flex-1 flex-col items-center gap-1">
+                <div
+                  className="w-full rounded-t bg-primary/70"
+                  style={{ height: `${Math.max(3, d.completionRate)}px` }}
+                  title={`${d.dateKey}: ${d.completionRate}%`}
+                />
+                <span className="text-[10px] text-muted-foreground">{d.dateKey.slice(-2)}</span>
+              </div>
+            ))}
+          </div>
+          <p className="mt-3 text-xs text-muted-foreground">
+            Best {fmtDay(stats.bestDay)} · Weakest {fmtDay(stats.worstDay)}
+          </p>
+        </div>
+      )}
 
       {stats.byCategory.length > 0 && (
         <div className="mt-4 rounded-2xl border border-border bg-card p-5">
@@ -106,18 +201,14 @@ function ReviewPage() {
 
       <div className="mt-4 rounded-2xl border border-border bg-card p-5">
         <div className="mb-3 flex items-center justify-between gap-3">
-          <h2 className="font-display text-2xl">AI review</h2>
+          <h2 className="font-display text-2xl">AI {PERIOD_LABEL[period].toLowerCase()} review</h2>
           <Button
             variant={review.data?.summary ? "outline" : "default"}
             disabled={generate.isPending || stats.planned === 0}
             onClick={() => generate.mutate()}
           >
             <Sparkles className="mr-1 h-4 w-4" />
-            {generate.isPending
-              ? "Thinking…"
-              : review.data?.summary
-                ? "Regenerate"
-                : "Generate review"}
+            {generate.isPending ? "Thinking…" : review.data?.summary ? "Regenerate" : "Generate review"}
           </Button>
         </div>
         {review.data?.summary ? (
@@ -125,11 +216,29 @@ function ReviewPage() {
         ) : (
           <p className="text-sm text-muted-foreground">
             {stats.planned === 0
-              ? "Add some tasks to today first — there's nothing to review yet."
-              : "Generate a review to see what went well, what slipped, and suggestions for tomorrow."}
+              ? "There's nothing tracked in this period yet."
+              : `Generate a review of this ${period} to see patterns and concrete suggestions.`}
           </p>
         )}
       </div>
+
+      {period !== "day" && stats.habits.length > 0 && (
+        <div className="mt-4 rounded-2xl border border-border bg-card p-5">
+          <h2 className="mb-3 text-sm font-semibold uppercase tracking-widest text-muted-foreground">
+            Habit consistency
+          </h2>
+          <ul className="space-y-1 text-sm">
+            {stats.habits.map((h) => (
+              <li key={h.title} className="flex items-center justify-between">
+                <span>{h.title}</span>
+                <span className="text-muted-foreground">
+                  {h.done}/{h.scheduled} days · {h.rate}%
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       {streaks.length > 0 && (
         <div className="mt-4 rounded-2xl border border-border bg-card p-5">
@@ -149,17 +258,48 @@ function ReviewPage() {
 
       <div className="mt-4 rounded-2xl border border-border bg-card p-5">
         <h2 className="mb-3 font-display text-2xl">On the table tomorrow</h2>
-        {tomorrowItems.length === 0 ? (
+        {tomorrowItems.length === 0 && tomorrowReminders.length === 0 ? (
           <p className="text-sm text-muted-foreground">Nothing scheduled yet for tomorrow.</p>
         ) : (
-          <ul className="space-y-1 text-sm">
-            {tomorrowItems.map((i) => (
-              <li key={i.task.id} className="flex items-center justify-between">
-                <span>{i.task.title}</span>
-                <span className="text-muted-foreground">{i.task.start_time?.slice(0, 5) ?? "anytime"}</span>
-              </li>
-            ))}
-          </ul>
+          <div className="space-y-4">
+            {tomorrowReminders.length > 0 && (
+              <div>
+                <p className="mb-1.5 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                  Reminders
+                </p>
+                <ul className="space-y-1 text-sm">
+                  {tomorrowReminders.map((r) => (
+                    <li key={r.id} className="flex items-center justify-between gap-3">
+                      <span className="flex items-center gap-2">
+                        {r.title}
+                        <Badge variant="secondary">reminder</Badge>
+                      </span>
+                      <span className="text-muted-foreground">
+                        {formatTime(r.due_time) ?? "anytime"}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {tomorrowItems.length > 0 && (
+              <div>
+                <p className="mb-1.5 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                  Tasks
+                </p>
+                <ul className="space-y-1 text-sm">
+                  {tomorrowItems.map((i) => (
+                    <li key={i.task.id} className="flex items-center justify-between">
+                      <span>{i.task.title}</span>
+                      <span className="text-muted-foreground">
+                        {formatTime(i.task.start_time) ?? "anytime"}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
         )}
       </div>
     </AppShell>
