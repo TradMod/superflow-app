@@ -5,17 +5,17 @@ import { Button } from "@/components/ui/button";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "DayFlow — Plan your day, track habits, review with AI" },
+      { title: "Flow  Plan your day, track habits, review with AI" },
       {
         name: "description",
         content:
-          "DayFlow keeps your routines, schedules and reminders in one place, tracks effort and time on every task, and writes you an end-of-day review with tomorrow's plan.",
+          "Flow keeps your routines, schedules and reminders in one place, tracks effort and time on every task, and writes you an end-of-day review with tomorrow's plan.",
       },
-      { property: "og:title", content: "DayFlow — Plan your day, track habits, review with AI" },
+      { property: "og:title", content: "Flow  Plan your day, track habits, review with AI" },
       {
         property: "og:description",
         content:
-          "DayFlow keeps your routines, schedules and reminders in one place, tracks effort and time on every task, and writes you an end-of-day review with tomorrow's plan.",
+          "Flow keeps your routines, schedules and reminders in one place, tracks effort and time on every task, and writes you an end-of-day review with tomorrow's plan.",
       },
     ],
   }),
