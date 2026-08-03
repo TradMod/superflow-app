@@ -7,6 +7,7 @@ import {
   Settings,
   Sparkles,
   Sun,
+  Target,
 } from "lucide-react";
 import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
@@ -16,9 +17,11 @@ const NAV = [
   { to: "/plan", label: "Plan", icon: ListChecks },
   { to: "/calendar", label: "Calendar", icon: CalendarDays },
   { to: "/reminders", label: "Reminders", icon: Bell },
+  { to: "/goals", label: "Goals", icon: Target },
   { to: "/review", label: "Review", icon: Sparkles },
   { to: "/insights", label: "Insights", icon: BarChart3 },
 ] as const;
+
 
 export function AppShell({
   title,
