@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { Check, Plus, Trash2 } from "lucide-react";
+import { Check, Pencil, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { AppShell } from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { currentUserId, remindersQuery } from "@/lib/queries";
-import { formatTime, fromDateKey, todayKey } from "@/lib/dayflow";
+import { formatTime, fromDateKey, todayKey, type Reminder } from "@/lib/dayflow";
 
 export const Route = createFileRoute("/_authenticated/reminders")({
   head: () => ({
@@ -31,36 +31,52 @@ export const Route = createFileRoute("/_authenticated/reminders")({
   component: RemindersPage,
 });
 
+type Draft = {
+  id?: string;
+  title: string;
+  notes: string;
+  due_date: string;
+  due_time: string;
+};
+
+const emptyDraft = (): Draft => ({ title: "", notes: "", due_date: todayKey(), due_time: "" });
+
+const toDraft = (r: Reminder): Draft => ({
+  id: r.id,
+  title: r.title,
+  notes: r.notes ?? "",
+  due_date: r.due_date,
+  due_time: r.due_time?.slice(0, 5) ?? "",
+});
+
 function RemindersPage() {
   const qc = useQueryClient();
   const today = todayKey();
   const reminders = useQuery(remindersQuery());
-  const [open, setOpen] = useState(false);
-  const [title, setTitle] = useState("");
-  const [notes, setNotes] = useState("");
-  const [date, setDate] = useState(today);
-  const [time, setTime] = useState("");
+  const [draft, setDraft] = useState<Draft | null>(null);
 
-  const create = useMutation({
-    mutationFn: async () => {
-      if (!title.trim()) throw new Error("Give your reminder a title.");
-      const userId = await currentUserId();
-      const { error } = await supabase.from("reminders").insert({
-        user_id: userId,
-        title: title.trim().slice(0, 120),
-        notes: notes.trim().slice(0, 1000) || null,
-        due_date: date,
-        due_time: time || null,
-      });
-      if (error) throw error;
+  const save = useMutation({
+    mutationFn: async (d: Draft) => {
+      if (!d.title.trim()) throw new Error("Give your reminder a title.");
+      const payload = {
+        title: d.title.trim().slice(0, 120),
+        notes: d.notes.trim().slice(0, 1000) || null,
+        due_date: d.due_date,
+        due_time: d.due_time || null,
+      };
+      if (d.id) {
+        const { error } = await supabase.from("reminders").update(payload).eq("id", d.id);
+        if (error) throw error;
+      } else {
+        const userId = await currentUserId();
+        const { error } = await supabase.from("reminders").insert({ ...payload, user_id: userId });
+        if (error) throw error;
+      }
     },
-    onSuccess: () => {
+    onSuccess: (_data, d) => {
       void qc.invalidateQueries({ queryKey: ["reminders"] });
-      setOpen(false);
-      setTitle("");
-      setNotes("");
-      setTime("");
-      toast.success("Reminder added");
+      setDraft(null);
+      toast.success(d.id ? "Reminder updated" : "Reminder added");
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -99,7 +115,7 @@ function RemindersPage() {
       title="Reminders"
       subtitle="Things waiting on a date"
       action={
-        <Button onClick={() => setOpen(true)}>
+        <Button onClick={() => setDraft(emptyDraft())}>
           <Plus className="mr-1 h-4 w-4" /> New
         </Button>
       }
@@ -150,6 +166,14 @@ function RemindersPage() {
                     <Button
                       variant="ghost"
                       size="icon"
+                      aria-label={`Edit ${r.title}`}
+                      onClick={() => setDraft(toDraft(r))}
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
                       aria-label={`Delete ${r.title}`}
                       onClick={() => remove.mutate(r.id)}
                     >
@@ -163,46 +187,58 @@ function RemindersPage() {
         </div>
       )}
 
-      <Dialog open={open} onOpenChange={setOpen}>
+      <Dialog open={!!draft} onOpenChange={(o) => !o && setDraft(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>New reminder</DialogTitle>
+            <DialogTitle>{draft?.id ? "Edit reminder" : "New reminder"}</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4">
-            <div className="space-y-1.5">
-              <Label htmlFor="rtitle">Title</Label>
-              <Input
-                id="rtitle"
-                maxLength={120}
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder="Renew passport"
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-3">
+          {draft && (
+            <div className="space-y-4">
               <div className="space-y-1.5">
-                <Label htmlFor="rdate">Date</Label>
-                <Input id="rdate" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+                <Label htmlFor="rtitle">Title</Label>
+                <Input
+                  id="rtitle"
+                  maxLength={120}
+                  value={draft.title}
+                  onChange={(e) => setDraft({ ...draft, title: e.target.value })}
+                  placeholder="Renew passport"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label htmlFor="rdate">Date</Label>
+                  <Input
+                    id="rdate"
+                    type="date"
+                    value={draft.due_date}
+                    onChange={(e) => setDraft({ ...draft, due_date: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="rtime">Time (optional)</Label>
+                  <Input
+                    id="rtime"
+                    type="time"
+                    value={draft.due_time}
+                    onChange={(e) => setDraft({ ...draft, due_time: e.target.value })}
+                  />
+                </div>
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="rtime">Time (optional)</Label>
-                <Input id="rtime" type="time" value={time} onChange={(e) => setTime(e.target.value)} />
+                <Label htmlFor="rnotes">Notes</Label>
+                <Textarea
+                  id="rnotes"
+                  rows={2}
+                  maxLength={1000}
+                  value={draft.notes}
+                  onChange={(e) => setDraft({ ...draft, notes: e.target.value })}
+                />
               </div>
             </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="rnotes">Notes</Label>
-              <Textarea
-                id="rnotes"
-                rows={2}
-                maxLength={1000}
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-              />
-            </div>
-          </div>
+          )}
           <DialogFooter>
-            <Button disabled={create.isPending} onClick={() => create.mutate()}>
-              {create.isPending ? "Saving…" : "Add reminder"}
+            <Button disabled={save.isPending} onClick={() => draft && save.mutate(draft)}>
+              {save.isPending ? "Saving…" : draft?.id ? "Save changes" : "Add reminder"}
             </Button>
           </DialogFooter>
         </DialogContent>
