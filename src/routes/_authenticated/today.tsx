@@ -19,7 +19,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
-import { categoriesQuery, currentUserId, occurrencesQuery, remindersQuery, tasksQuery } from "@/lib/queries";
+import { categoriesQuery, currentUserId, occurrencesQuery, overridesQuery, remindersQuery, tasksQuery } from "@/lib/queries";
 import {
   addDays,
   buildDay,
@@ -51,12 +51,13 @@ function TodayPage() {
   const occurrences = useQuery(occurrencesQuery(from, today));
   const categories = useQuery(categoriesQuery());
   const reminders = useQuery(remindersQuery());
+  const overrides = useQuery(overridesQuery());
 
   const [active, setActive] = useState<DayItem | null>(null);
 
   const items = useMemo(
-    () => buildDay(tasks.data ?? [], occurrences.data ?? [], today),
-    [tasks.data, occurrences.data, today],
+    () => buildDay(tasks.data ?? [], occurrences.data ?? [], today, overrides.data ?? []),
+    [tasks.data, occurrences.data, overrides.data, today],
   );
   const stats = useMemo(
     () => computeDayStats(items, categories.data ?? [], today),
@@ -149,7 +150,7 @@ function TodayPage() {
           {items.map((item) => {
             const category = (categories.data ?? []).find((c) => c.id === item.task.category_id);
             const streak = item.task.is_habit
-              ? computeStreak(item.task, occurrences.data ?? [], today)
+              ? computeStreak(item.task, occurrences.data ?? [], today, overrides.data ?? [])
               : 0;
             return (
               <li
