@@ -3,7 +3,7 @@ import type { Tables } from "@/integrations/supabase/types";
 export type Task = Tables<"tasks">;
 export type Occurrence = Tables<"task_occurrences">;
 export type Category = Tables<"categories">;
-export type Reminder = Tables<"reminders">;
+
 
 export const REPEAT_KINDS = ["none", "daily", "weekdays", "weekly", "monthly"] as const;
 export type RepeatKind = (typeof REPEAT_KINDS)[number];
@@ -422,24 +422,95 @@ export function computeRangeStats(input: {
 
 export type Goal = Tables<"goals">;
 export type GoalMilestone = Tables<"goal_milestones">;
+export type GoalDailyLog = Tables<"goal_daily_logs">;
 
-export const GOAL_PERIODS = ["weekly", "monthly", "yearly"] as const;
+export const GOAL_PERIODS = ["daily", "weekly", "monthly", "yearly"] as const;
 export type GoalPeriod = (typeof GOAL_PERIODS)[number];
 
+export const GOAL_TRACKINGS = ["numeric", "checklist", "both"] as const;
+export type GoalTracking = (typeof GOAL_TRACKINGS)[number];
+
 export const GOAL_PERIOD_LABEL: Record<GoalPeriod, string> = {
+  daily: "Today",
   weekly: "This week",
   monthly: "This month",
   yearly: "This year",
 };
 
-export function goalProgress(goal: Goal, milestones: GoalMilestone[]): number {
-  if (goal.tracking === "checklist") {
-    const mine = milestones.filter((m) => m.goal_id === goal.id);
-    if (mine.length === 0) return 0;
-    return Math.round((mine.filter((m) => m.done).length / mine.length) * 100);
+/** Daily goals track a value per day; every other period tracks one running value. */
+export function goalCurrentValue(
+  goal: Goal,
+  dailyLogs: GoalDailyLog[] = [],
+  dateKey: string = todayKey(),
+): number {
+  if (goal.period === "daily") {
+    const log = dailyLogs.find((l) => l.goal_id === goal.id && l.log_date === dateKey);
+    return Number(log?.value ?? 0);
   }
+  return Number(goal.current_value);
+}
+
+function clampPercent(value: number): number {
+  return Math.max(0, Math.min(100, Math.round(value)));
+}
+
+export function goalNumericProgress(
+  goal: Goal,
+  dailyLogs: GoalDailyLog[] = [],
+  dateKey: string = todayKey(),
+): number {
   const target = Number(goal.target_value) || 1;
-  return Math.max(0, Math.min(100, Math.round((Number(goal.current_value) / target) * 100)));
+  return clampPercent((goalCurrentValue(goal, dailyLogs, dateKey) / target) * 100);
+}
+
+export function goalChecklistProgress(goal: Goal, milestones: GoalMilestone[]): number {
+  const mine = milestones.filter((m) => m.goal_id === goal.id);
+  if (mine.length === 0) return 0;
+  return clampPercent((mine.filter((m) => m.done).length / mine.length) * 100);
+}
+
+/** Goals tracked by both a number and milestones average the two halves. */
+export function goalProgress(
+  goal: Goal,
+  milestones: GoalMilestone[],
+  dailyLogs: GoalDailyLog[] = [],
+  dateKey: string = todayKey(),
+): number {
+  const tracking = goal.tracking as GoalTracking;
+  if (tracking === "checklist") return goalChecklistProgress(goal, milestones);
+  if (tracking === "numeric") return goalNumericProgress(goal, dailyLogs, dateKey);
+  return clampPercent(
+    (goalNumericProgress(goal, dailyLogs, dateKey) + goalChecklistProgress(goal, milestones)) / 2,
+  );
+}
+
+/** Streak of consecutive days a daily goal hit its target, ending at `dateKey`. */
+export function dailyGoalStreak(
+  goal: Goal,
+  dailyLogs: GoalDailyLog[],
+  dateKey: string = todayKey(),
+): number {
+  const target = Number(goal.target_value) || 1;
+  const hit = new Set(
+    dailyLogs
+      .filter((l) => l.goal_id === goal.id && (l.done || Number(l.value) >= target))
+      .map((l) => l.log_date),
+  );
+  let streak = 0;
+  let cursor = dateKey;
+  for (let i = 0; i < 400; i++) {
+    if (hit.has(cursor)) {
+      streak += 1;
+      cursor = addDays(cursor, -1);
+      continue;
+    }
+    if (cursor === dateKey) {
+      cursor = addDays(cursor, -1);
+      continue;
+    }
+    break;
+  }
+  return streak;
 }
 
 export function daysLeft(targetDate: string): number {

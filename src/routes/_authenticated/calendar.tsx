@@ -5,8 +5,8 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { occurrencesQuery, overridesQuery, remindersQuery, tasksQuery } from "@/lib/queries";
-import { buildDay, formatTime, fromDateKey, toDateKey, todayKey } from "@/lib/dayflow";
+import { occurrencesQuery, overridesQuery, tasksQuery } from "@/lib/queries";
+import { buildDay, formatTime, fromDateKey, overridesOn, toDateKey, todayKey } from "@/lib/dayflow";
 
 export const Route = createFileRoute("/_authenticated/calendar")({
   head: () => ({
@@ -33,7 +33,7 @@ function CalendarPage() {
 
   const tasks = useQuery(tasksQuery());
   const occurrences = useQuery(occurrencesQuery(monthStart, monthEnd));
-  const reminders = useQuery(remindersQuery());
+  
   const overrides = useQuery(overridesQuery());
 
   const days = useMemo(() => {
@@ -48,7 +48,7 @@ function CalendarPage() {
   }, [cursor]);
 
   const selectedItems = buildDay(tasks.data ?? [], occurrences.data ?? [], selected, overrides.data ?? []);
-  const selectedReminders = (reminders.data ?? []).filter((r) => r.due_date === selected);
+  const selectedEvents = overridesOn(overrides.data ?? [], selected);
 
   return (
     <AppShell title="Calendar" subtitle="Everything on your future days">
@@ -83,7 +83,7 @@ function CalendarPage() {
         {days.map((key, i) => {
           if (!key) return <span key={`e${i}`} />;
           const count = buildDay(tasks.data ?? [], occurrences.data ?? [], key, overrides.data ?? []).length;
-          const hasReminder = (reminders.data ?? []).some((r) => r.due_date === key && !r.done);
+          const hasEvent = overridesOn(overrides.data ?? [], key).length > 0;
           return (
             <button
               key={key}
@@ -102,7 +102,7 @@ function CalendarPage() {
               </span>
               <span className="mt-1 flex items-center justify-center gap-0.5">
                 {count > 0 && <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground/60" />}
-                {hasReminder && <span className="h-1.5 w-1.5 rounded-full bg-primary" />}
+                {hasEvent && <span className="h-1.5 w-1.5 rounded-full bg-primary" />}
               </span>
             </button>
           );
@@ -117,10 +117,24 @@ function CalendarPage() {
             day: "numeric",
           })}
         </h2>
-        {selectedItems.length === 0 && selectedReminders.length === 0 ? (
+        {selectedItems.length === 0 && selectedEvents.length === 0 ? (
           <p className="text-sm text-muted-foreground">Nothing scheduled on this day.</p>
         ) : (
           <ul className="space-y-2">
+            {selectedEvents.map((event) => (
+              <li
+                key={event.id}
+                className="flex items-center justify-between gap-3 rounded-xl border border-primary/30 bg-primary/5 p-3 text-sm"
+              >
+                <span>{event.title}</span>
+                <span className="flex items-center gap-2 text-xs text-muted-foreground">
+                  {event.start_time && event.end_time
+                    ? `${formatTime(event.start_time)} – ${formatTime(event.end_time)}`
+                    : "all day"}
+                  <Badge variant="secondary">event</Badge>
+                </span>
+              </li>
+            ))}
             {selectedItems.map((item) => (
               <li
                 key={item.task.id}
@@ -133,17 +147,9 @@ function CalendarPage() {
                 </span>
               </li>
             ))}
-            {selectedReminders.map((r) => (
-              <li
-                key={r.id}
-                className="flex items-center justify-between gap-3 rounded-xl border border-primary/30 bg-primary/5 p-3 text-sm"
-              >
-                <span>{r.title}</span>
-                <Badge variant="secondary">reminder</Badge>
-              </li>
-            ))}
           </ul>
         )}
+
       </div>
     </AppShell>
   );

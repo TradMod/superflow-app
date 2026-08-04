@@ -68,6 +68,47 @@ export type Database = {
         }
         Relationships: []
       }
+      goal_daily_logs: {
+        Row: {
+          created_at: string
+          done: boolean
+          goal_id: string
+          id: string
+          log_date: string
+          updated_at: string
+          user_id: string
+          value: number
+        }
+        Insert: {
+          created_at?: string
+          done?: boolean
+          goal_id: string
+          id?: string
+          log_date: string
+          updated_at?: string
+          user_id: string
+          value?: number
+        }
+        Update: {
+          created_at?: string
+          done?: boolean
+          goal_id?: string
+          id?: string
+          log_date?: string
+          updated_at?: string
+          user_id?: string
+          value?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "goal_daily_logs_goal_id_fkey"
+            columns: ["goal_id"]
+            isOneToOne: false
+            referencedRelation: "goals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       goal_milestones: {
         Row: {
           created_at: string
@@ -222,42 +263,6 @@ export type Database = {
           review_time?: string
           timezone?: string
           updated_at?: string
-        }
-        Relationships: []
-      }
-      reminders: {
-        Row: {
-          created_at: string
-          done: boolean
-          due_date: string
-          due_time: string | null
-          id: string
-          notes: string | null
-          title: string
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          created_at?: string
-          done?: boolean
-          due_date: string
-          due_time?: string | null
-          id?: string
-          notes?: string | null
-          title: string
-          updated_at?: string
-          user_id: string
-        }
-        Update: {
-          created_at?: string
-          done?: boolean
-          due_date?: string
-          due_time?: string | null
-          id?: string
-          notes?: string | null
-          title?: string
-          updated_at?: string
-          user_id?: string
         }
         Relationships: []
       }
@@ -465,9 +470,9 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      goal_period: "weekly" | "monthly" | "yearly"
+      goal_period: "daily" | "weekly" | "monthly" | "yearly"
       goal_status: "active" | "achieved" | "archived"
-      goal_tracking: "numeric" | "checklist"
+      goal_tracking: "numeric" | "checklist" | "both"
       occurrence_status: "pending" | "done" | "skipped"
       repeat_kind: "none" | "daily" | "weekdays" | "weekly" | "monthly"
       review_period: "day" | "week" | "month"
@@ -598,9 +603,9 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      goal_period: ["weekly", "monthly", "yearly"],
+      goal_period: ["daily", "weekly", "monthly", "yearly"],
       goal_status: ["active", "achieved", "archived"],
-      goal_tracking: ["numeric", "checklist"],
+      goal_tracking: ["numeric", "checklist", "both"],
       occurrence_status: ["pending", "done", "skipped"],
       repeat_kind: ["none", "daily", "weekdays", "weekly", "monthly"],
       review_period: ["day", "week", "month"],

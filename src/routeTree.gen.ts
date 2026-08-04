@@ -16,7 +16,6 @@ import { Route as AuthenticatedCalendarRouteImport } from './routes/_authenticat
 import { Route as AuthenticatedGoalsRouteImport } from './routes/_authenticated/goals'
 import { Route as AuthenticatedInsightsRouteImport } from './routes/_authenticated/insights'
 import { Route as AuthenticatedPlanRouteImport } from './routes/_authenticated/plan'
-import { Route as AuthenticatedRemindersRouteImport } from './routes/_authenticated/reminders'
 import { Route as AuthenticatedReviewRouteImport } from './routes/_authenticated/review'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as AuthenticatedTodayRouteImport } from './routes/_authenticated/today'
@@ -55,11 +54,6 @@ const AuthenticatedPlanRoute = AuthenticatedPlanRouteImport.update({
   path: '/plan',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
-const AuthenticatedRemindersRoute = AuthenticatedRemindersRouteImport.update({
-  id: '/reminders',
-  path: '/reminders',
-  getParentRoute: () => AuthenticatedRouteRoute,
-} as any)
 const AuthenticatedReviewRoute = AuthenticatedReviewRouteImport.update({
   id: '/review',
   path: '/review',
@@ -83,7 +77,6 @@ export interface FileRoutesByFullPath {
   '/goals': typeof AuthenticatedGoalsRoute
   '/insights': typeof AuthenticatedInsightsRoute
   '/plan': typeof AuthenticatedPlanRoute
-  '/reminders': typeof AuthenticatedRemindersRoute
   '/review': typeof AuthenticatedReviewRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/today': typeof AuthenticatedTodayRoute
@@ -95,7 +88,6 @@ export interface FileRoutesByTo {
   '/goals': typeof AuthenticatedGoalsRoute
   '/insights': typeof AuthenticatedInsightsRoute
   '/plan': typeof AuthenticatedPlanRoute
-  '/reminders': typeof AuthenticatedRemindersRoute
   '/review': typeof AuthenticatedReviewRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/today': typeof AuthenticatedTodayRoute
@@ -109,7 +101,6 @@ export interface FileRoutesById {
   '/_authenticated/goals': typeof AuthenticatedGoalsRoute
   '/_authenticated/insights': typeof AuthenticatedInsightsRoute
   '/_authenticated/plan': typeof AuthenticatedPlanRoute
-  '/_authenticated/reminders': typeof AuthenticatedRemindersRoute
   '/_authenticated/review': typeof AuthenticatedReviewRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/_authenticated/today': typeof AuthenticatedTodayRoute
@@ -123,7 +114,6 @@ export interface FileRouteTypes {
     | '/goals'
     | '/insights'
     | '/plan'
-    | '/reminders'
     | '/review'
     | '/settings'
     | '/today'
@@ -135,7 +125,6 @@ export interface FileRouteTypes {
     | '/goals'
     | '/insights'
     | '/plan'
-    | '/reminders'
     | '/review'
     | '/settings'
     | '/today'
@@ -148,7 +137,6 @@ export interface FileRouteTypes {
     | '/_authenticated/goals'
     | '/_authenticated/insights'
     | '/_authenticated/plan'
-    | '/_authenticated/reminders'
     | '/_authenticated/review'
     | '/_authenticated/settings'
     | '/_authenticated/today'
@@ -211,13 +199,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedPlanRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/_authenticated/reminders': {
-      id: '/_authenticated/reminders'
-      path: '/reminders'
-      fullPath: '/reminders'
-      preLoaderRoute: typeof AuthenticatedRemindersRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
     '/_authenticated/review': {
       id: '/_authenticated/review'
       path: '/review'
@@ -247,7 +228,6 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedGoalsRoute: typeof AuthenticatedGoalsRoute
   AuthenticatedInsightsRoute: typeof AuthenticatedInsightsRoute
   AuthenticatedPlanRoute: typeof AuthenticatedPlanRoute
-  AuthenticatedRemindersRoute: typeof AuthenticatedRemindersRoute
   AuthenticatedReviewRoute: typeof AuthenticatedReviewRoute
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
   AuthenticatedTodayRoute: typeof AuthenticatedTodayRoute
@@ -258,7 +238,6 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedGoalsRoute: AuthenticatedGoalsRoute,
   AuthenticatedInsightsRoute: AuthenticatedInsightsRoute,
   AuthenticatedPlanRoute: AuthenticatedPlanRoute,
-  AuthenticatedRemindersRoute: AuthenticatedRemindersRoute,
   AuthenticatedReviewRoute: AuthenticatedReviewRoute,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
   AuthenticatedTodayRoute: AuthenticatedTodayRoute,
@@ -275,13 +254,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}

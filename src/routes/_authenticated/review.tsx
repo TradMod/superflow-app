@@ -6,13 +6,11 @@ import { Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { AppShell } from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import {
   categoriesQuery,
   occurrencesQuery,
   overridesQuery,
   periodReviewQuery,
-  remindersQuery,
   tasksQuery,
 } from "@/lib/queries";
 import { generatePeriodSummary } from "@/lib/review.functions";
@@ -57,7 +55,7 @@ function ReviewPage() {
   const occurrences = useQuery(occurrencesQuery(addDays(range.start, -60), range.end));
   const categories = useQuery(categoriesQuery());
   const overrides = useQuery(overridesQuery());
-  const reminders = useQuery(remindersQuery());
+  
   const review = useQuery(periodReviewQuery(period, range.start));
   const summarize = useServerFn(generatePeriodSummary);
 
@@ -79,10 +77,6 @@ function ReviewPage() {
     () => buildDay(tasks.data ?? [], [], tomorrow, overrides.data ?? []),
     [tasks.data, overrides.data, tomorrow],
   );
-  const tomorrowReminders = useMemo(
-    () => (reminders.data ?? []).filter((r) => !r.done && r.due_date === tomorrow),
-    [reminders.data, tomorrow],
-  );
   const streaks = useMemo(
     () =>
       (tasks.data ?? [])
@@ -103,7 +97,7 @@ function ReviewPage() {
           ...stats,
           periodStart: range.start,
           tomorrowTasks: tomorrowItems.map((i) => i.task.title).slice(0, 60),
-          tomorrowReminders: tomorrowReminders.map((r) => r.title).slice(0, 60),
+          
           streaks: streaks.slice(0, 30),
         },
       }),
@@ -258,50 +252,22 @@ function ReviewPage() {
 
       <div className="mt-4 rounded-2xl border border-border bg-card p-5">
         <h2 className="mb-3 font-display text-2xl">On the table tomorrow</h2>
-        {tomorrowItems.length === 0 && tomorrowReminders.length === 0 ? (
+        {tomorrowItems.length === 0 ? (
           <p className="text-sm text-muted-foreground">Nothing scheduled yet for tomorrow.</p>
         ) : (
-          <div className="space-y-4">
-            {tomorrowReminders.length > 0 && (
-              <div>
-                <p className="mb-1.5 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-                  Reminders
-                </p>
-                <ul className="space-y-1 text-sm">
-                  {tomorrowReminders.map((r) => (
-                    <li key={r.id} className="flex items-center justify-between gap-3">
-                      <span className="flex items-center gap-2">
-                        {r.title}
-                        <Badge variant="secondary">reminder</Badge>
-                      </span>
-                      <span className="text-muted-foreground">
-                        {formatTime(r.due_time) ?? "anytime"}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-            {tomorrowItems.length > 0 && (
-              <div>
-                <p className="mb-1.5 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-                  Tasks
-                </p>
-                <ul className="space-y-1 text-sm">
-                  {tomorrowItems.map((i) => (
-                    <li key={i.task.id} className="flex items-center justify-between">
-                      <span>{i.task.title}</span>
-                      <span className="text-muted-foreground">
-                        {formatTime(i.task.start_time) ?? "anytime"}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-          </div>
+          <ul className="space-y-1 text-sm">
+            {tomorrowItems.map((i) => (
+              <li key={i.task.id} className="flex items-center justify-between">
+                <span>{i.task.title}</span>
+                <span className="text-muted-foreground">
+                  {formatTime(i.task.start_time) ?? "anytime"}
+                </span>
+              </li>
+            ))}
+          </ul>
         )}
       </div>
+
     </AppShell>
   );
 }

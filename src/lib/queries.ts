@@ -3,11 +3,11 @@ import { supabase } from "@/integrations/supabase/client";
 import type {
   Category,
   Goal,
+  GoalDailyLog,
   GoalMilestone,
   Occurrence,
   OverrideWithTasks,
   PeriodKind,
-  Reminder,
   Task,
 } from "./dayflow";
 
@@ -50,19 +50,19 @@ export const occurrencesQuery = (from: string, to: string) =>
     },
   });
 
-export const remindersQuery = () =>
+export const goalDailyLogsQuery = () =>
   queryOptions({
-    queryKey: ["reminders"],
-    queryFn: async (): Promise<Reminder[]> => {
+    queryKey: ["goal_daily_logs"],
+    queryFn: async (): Promise<GoalDailyLog[]> => {
       const { data, error } = await supabase
-        .from("reminders")
+        .from("goal_daily_logs")
         .select("*")
-        .order("due_date")
-        .order("due_time", { nullsFirst: true });
+        .order("log_date", { ascending: false });
       if (error) throw error;
       return data ?? [];
     },
   });
+
 
 export const profileQuery = () =>
   queryOptions({

@@ -28,7 +28,6 @@ const StatsInput = z.object({
   completed: z.array(z.string()),
   missed: z.array(z.string()),
   tomorrowTasks: z.array(z.string()),
-  tomorrowReminders: z.array(z.string()),
   streaks: z.array(z.object({ title: z.string(), days: z.number() })),
 });
 
@@ -56,7 +55,6 @@ function buildPrompt(data: Stats): string {
       `Completed: ${data.completed.join(", ") || "nothing"}`,
       `Not completed: ${data.missed.join(", ") || "nothing"}`,
       `On the table tomorrow — tasks: ${data.tomorrowTasks.join(", ") || "nothing scheduled yet"}`,
-      `On the table tomorrow — reminders: ${data.tomorrowReminders.join(", ") || "none"}`,
     );
   } else {
     lines.push(
