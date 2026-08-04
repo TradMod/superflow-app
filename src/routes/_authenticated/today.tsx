@@ -19,7 +19,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
-import { categoriesQuery, currentUserId, occurrencesQuery, overridesQuery, remindersQuery, tasksQuery } from "@/lib/queries";
+import { categoriesQuery, currentUserId, occurrencesQuery, overridesQuery, tasksQuery } from "@/lib/queries";
 import {
   addDays,
   buildDay,
@@ -50,7 +50,7 @@ function TodayPage() {
   const tasks = useQuery(tasksQuery());
   const occurrences = useQuery(occurrencesQuery(from, today));
   const categories = useQuery(categoriesQuery());
-  const reminders = useQuery(remindersQuery());
+  
   const overrides = useQuery(overridesQuery());
 
   const [active, setActive] = useState<DayItem | null>(null);
@@ -64,7 +64,7 @@ function TodayPage() {
     [items, categories.data, today],
   );
 
-  const dueReminders = (reminders.data ?? []).filter((r) => !r.done && r.due_date <= today);
+  
 
   const setStatus = useMutation({
     mutationFn: async (input: {
@@ -118,24 +118,6 @@ function TodayPage() {
         <Progress value={stats.completionRate} className="mt-4" />
       </div>
 
-      {dueReminders.length > 0 && (
-        <div className="mb-6 rounded-2xl border border-primary/30 bg-primary/5 p-4">
-          <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-primary">
-            Reminders due
-          </p>
-          <ul className="space-y-1 text-sm">
-            {dueReminders.map((r) => (
-              <li key={r.id} className="flex items-center justify-between gap-3">
-                <span>
-                  {r.title}
-                  {r.due_date < today ? " (overdue)" : ""}
-                </span>
-                <span className="text-muted-foreground">{formatTime(r.due_time) ?? r.due_date}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
 
       {loading ? (
         <p className="text-sm text-muted-foreground">Loading your day…</p>
