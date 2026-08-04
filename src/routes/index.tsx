@@ -1,21 +1,21 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowRight, BarChart3, Bell, CheckCircle2, Repeat, Sparkles } from "lucide-react";
+import { ArrowRight, BarChart3, CalendarOff, CheckCircle2, Repeat, Sparkles, Target } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Flow  Plan your day, track habits, review with AI" },
+      { title: "DayFlow — Plan your day, track habits, review with AI" },
       {
         name: "description",
         content:
-          "Flow keeps your routines, schedules and reminders in one place, tracks effort and time on every task, and writes you an end-of-day review with tomorrow's plan.",
+          "DayFlow keeps your routines, events and goals in one place, tracks effort and time on every task, and writes you a daily, weekly or monthly review.",
       },
-      { property: "og:title", content: "Flow  Plan your day, track habits, review with AI" },
+      { property: "og:title", content: "DayFlow — Plan your day, track habits, review with AI" },
       {
         property: "og:description",
         content:
-          "Flow keeps your routines, schedules and reminders in one place, tracks effort and time on every task, and writes you an end-of-day review with tomorrow's plan.",
+          "DayFlow keeps your routines, events and goals in one place, tracks effort and time on every task, and writes you a daily, weekly or monthly review.",
       },
     ],
   }),
@@ -34,13 +34,18 @@ const FEATURES = [
     body: "Tick a task off with an effort rating and the minutes it actually took.",
   },
   {
-    icon: Bell,
-    title: "Reminders for later",
-    body: "Park anything on a future date and see it surface the moment it's due.",
+    icon: CalendarOff,
+    title: "Events that excuse your day",
+    body: "Off at a hackathon? Block the days and your streaks stay intact instead of breaking.",
+  },
+  {
+    icon: Target,
+    title: "Goals with real tracking",
+    body: "Daily, weekly, monthly or yearly goals tracked by a number, milestones, or both.",
   },
   {
     icon: Sparkles,
-    title: "An AI end-of-day review",
+    title: "AI day, week and month reviews",
     body: "What went well, what slipped, and exactly what's on the table tomorrow.",
   },
   {
@@ -49,6 +54,7 @@ const FEATURES = [
     body: "Streaks, completion rates and where your hours actually go each week.",
   },
 ];
+
 
 function Landing() {
   return (
