@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { Check, Minus, Pencil, Plus, Target, Trash2 } from "lucide-react";
+import { Check, Flame, Minus, Pencil, Plus, Target, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { AppShell } from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
@@ -28,20 +28,26 @@ import { supabase } from "@/integrations/supabase/client";
 import {
   categoriesQuery,
   currentUserId,
+  goalDailyLogsQuery,
   goalMilestonesQuery,
   goalsQuery,
 } from "@/lib/queries";
 import {
   addDays,
+  dailyGoalStreak,
   daysLeft,
   endOfMonth,
   fromDateKey,
+  goalChecklistProgress,
+  goalCurrentValue,
+  goalNumericProgress,
   goalPace,
   goalProgress,
   GOAL_PERIODS,
   todayKey,
   type Goal,
   type GoalPeriod,
+  type GoalTracking,
 } from "@/lib/dayflow";
 
 export const Route = createFileRoute("/_authenticated/goals")({
@@ -50,12 +56,14 @@ export const Route = createFileRoute("/_authenticated/goals")({
       { title: "Goals — DayFlow" },
       {
         name: "description",
-        content: "Set weekly, monthly and yearly goals and track progress towards them.",
+        content:
+          "Set daily, weekly, monthly and yearly goals and track them with numbers, milestones or both.",
       },
       { property: "og:title", content: "Goals — DayFlow" },
       {
         property: "og:description",
-        content: "Set weekly, monthly and yearly goals and track progress towards them.",
+        content:
+          "Set daily, weekly, monthly and yearly goals and track them with numbers, milestones or both.",
       },
     ],
   }),
@@ -63,13 +71,21 @@ export const Route = createFileRoute("/_authenticated/goals")({
 });
 
 const PERIOD_LABEL: Record<GoalPeriod, string> = {
+  daily: "Daily",
   weekly: "Weekly",
   monthly: "Monthly",
   yearly: "Yearly",
 };
 
+const TRACKING_LABEL: Record<GoalTracking, string> = {
+  numeric: "A number target",
+  checklist: "A milestone checklist",
+  both: "Both a number and milestones",
+};
+
 function defaultTarget(period: GoalPeriod): string {
   const today = todayKey();
+  if (period === "daily") return today;
   if (period === "weekly") return addDays(today, 7);
   if (period === "monthly") return endOfMonth(today);
   return `${today.slice(0, 4)}-12-31`;
@@ -82,7 +98,7 @@ type Draft = {
   category_id: string;
   period: GoalPeriod;
   target_date: string;
-  tracking: "numeric" | "checklist";
+  tracking: GoalTracking;
   target_value: string;
   current_value: string;
   unit: string;
@@ -107,7 +123,7 @@ const toDraft = (g: Goal): Draft => ({
   category_id: g.category_id ?? "none",
   period: g.period as GoalPeriod,
   target_date: g.target_date,
-  tracking: g.tracking as "numeric" | "checklist",
+  tracking: g.tracking as GoalTracking,
   target_value: String(g.target_value),
   current_value: String(g.current_value),
   unit: g.unit ?? "",
@@ -115,8 +131,10 @@ const toDraft = (g: Goal): Draft => ({
 
 function GoalsPage() {
   const qc = useQueryClient();
+  const today = todayKey();
   const goals = useQuery(goalsQuery());
   const milestones = useQuery(goalMilestonesQuery());
+  const dailyLogs = useQuery(goalDailyLogsQuery());
   const categories = useQuery(categoriesQuery());
   const [draft, setDraft] = useState<Draft | null>(null);
   const [newMilestone, setNewMilestone] = useState<Record<string, string>>({});
@@ -124,11 +142,13 @@ function GoalsPage() {
   const invalidate = () => {
     void qc.invalidateQueries({ queryKey: ["goals"] });
     void qc.invalidateQueries({ queryKey: ["goal_milestones"] });
+    void qc.invalidateQueries({ queryKey: ["goal_daily_logs"] });
   };
 
   const save = useMutation({
     mutationFn: async (d: Draft) => {
       if (!d.title.trim()) throw new Error("Give your goal a title.");
+      const usesNumber = d.tracking === "numeric" || d.tracking === "both";
       const payload = {
         title: d.title.trim().slice(0, 140),
         notes: d.notes.trim().slice(0, 1000) || null,
@@ -136,8 +156,9 @@ function GoalsPage() {
         period: d.period,
         target_date: d.target_date,
         tracking: d.tracking,
-        target_value: d.tracking === "numeric" ? Number(d.target_value) || 1 : 1,
-        current_value: d.tracking === "numeric" ? Number(d.current_value) || 0 : 0,
+        target_value: usesNumber ? Number(d.target_value) || 1 : 1,
+        current_value:
+          usesNumber && d.period !== "daily" ? Number(d.current_value) || 0 : 0,
         unit: d.unit.trim().slice(0, 24) || null,
       };
       if (d.id) {
@@ -167,7 +188,27 @@ function GoalsPage() {
       const { error } = await supabase.from("goals").update(input.values).eq("id", input.id);
       if (error) throw error;
     },
+    onSuccess: invalidate,
+    onError: (e: Error) => toast.error(e.message),
+  });
 
+  const setDailyValue = useMutation({
+    mutationFn: async (input: { goal: Goal; value: number }) => {
+      const userId = await currentUserId();
+      const target = Number(input.goal.target_value) || 1;
+      const value = Math.max(0, input.value);
+      const { error } = await supabase.from("goal_daily_logs").upsert(
+        {
+          user_id: userId,
+          goal_id: input.goal.id,
+          log_date: today,
+          value,
+          done: value >= target,
+        },
+        { onConflict: "goal_id,log_date" },
+      );
+      if (error) throw error;
+    },
     onSuccess: invalidate,
     onError: (e: Error) => toast.error(e.message),
   });
@@ -224,15 +265,22 @@ function GoalsPage() {
 
   const all = goals.data ?? [];
   const ms = milestones.data ?? [];
+  const logs = dailyLogs.data ?? [];
   const active = all.filter((g) => g.status === "active");
   const achieved = all.filter((g) => g.status === "achieved");
 
   const renderGoal = (goal: Goal) => {
-    const progress = goalProgress(goal, ms);
+    const tracking = goal.tracking as GoalTracking;
+    const isDaily = goal.period === "daily";
+    const usesNumber = tracking === "numeric" || tracking === "both";
+    const usesChecklist = tracking === "checklist" || tracking === "both";
+    const progress = goalProgress(goal, ms, logs, today);
     const pace = goalPace(goal, progress);
     const left = daysLeft(goal.target_date);
     const category = (categories.data ?? []).find((c) => c.id === goal.category_id);
     const mine = ms.filter((m) => m.goal_id === goal.id);
+    const current = goalCurrentValue(goal, logs, today);
+    const streak = isDaily ? dailyGoalStreak(goal, logs, today) : 0;
 
     return (
       <li key={goal.id} className="rounded-2xl border border-border bg-card p-5">
@@ -242,28 +290,39 @@ function GoalsPage() {
             <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
               <Badge variant="outline">{PERIOD_LABEL[goal.period as GoalPeriod]}</Badge>
               {category && <Badge variant="secondary">{category.name}</Badge>}
-              <span>
-                {fromDateKey(goal.target_date).toLocaleDateString(undefined, {
-                  month: "short",
-                  day: "numeric",
-                })}
-                {goal.status === "active"
-                  ? left >= 0
-                    ? ` · ${left} day${left === 1 ? "" : "s"} left`
-                    : " · past due"
-                  : ""}
-              </span>
-              <span
-                className={
-                  pace === "behind"
-                    ? "text-destructive"
-                    : pace === "done"
-                      ? "text-primary"
-                      : "text-muted-foreground"
-                }
-              >
-                {pace}
-              </span>
+              {isDaily ? (
+                <span>resets every day</span>
+              ) : (
+                <span>
+                  {fromDateKey(goal.target_date).toLocaleDateString(undefined, {
+                    month: "short",
+                    day: "numeric",
+                  })}
+                  {goal.status === "active"
+                    ? left >= 0
+                      ? ` · ${left} day${left === 1 ? "" : "s"} left`
+                      : " · past due"
+                    : ""}
+                </span>
+              )}
+              {isDaily && streak > 0 && (
+                <span className="inline-flex items-center gap-1 text-primary">
+                  <Flame className="h-3 w-3" /> {streak}d streak
+                </span>
+              )}
+              {!isDaily && (
+                <span
+                  className={
+                    pace === "behind"
+                      ? "text-destructive"
+                      : pace === "done"
+                        ? "text-primary"
+                        : "text-muted-foreground"
+                  }
+                >
+                  {pace}
+                </span>
+              )}
             </div>
           </div>
           <Button
@@ -287,28 +346,42 @@ function GoalsPage() {
         {goal.notes && <p className="mt-2 text-sm text-muted-foreground">{goal.notes}</p>}
 
         <div className="mt-3">
-          <div className="mb-1.5 flex items-center justify-between text-xs text-muted-foreground">
+          <div className="mb-1.5 flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
             <span>
-              {goal.tracking === "numeric"
-                ? `${Number(goal.current_value)} / ${Number(goal.target_value)}${goal.unit ? ` ${goal.unit}` : ""}`
-                : `${mine.filter((m) => m.done).length} / ${mine.length} milestones`}
+              {usesNumber && (
+                <>
+                  {isDaily ? "Today " : ""}
+                  {current} / {Number(goal.target_value)}
+                  {goal.unit ? ` ${goal.unit}` : ""}
+                  {usesChecklist ? " · " : ""}
+                </>
+              )}
+              {usesChecklist && `${mine.filter((m) => m.done).length} / ${mine.length} milestones`}
             </span>
             <span>{progress}%</span>
           </div>
           <Progress value={progress} />
+          {tracking === "both" && (
+            <p className="mt-1.5 text-[11px] text-muted-foreground">
+              Blended: {goalNumericProgress(goal, logs, today)}% number ·{" "}
+              {goalChecklistProgress(goal, ms)}% milestones
+            </p>
+          )}
         </div>
 
-        {goal.tracking === "numeric" && goal.status === "active" && (
+        {usesNumber && goal.status === "active" && (
           <div className="mt-3 flex items-center gap-2">
             <Button
               variant="outline"
               size="icon"
               aria-label={`Decrease ${goal.title}`}
               onClick={() =>
-                patchGoal.mutate({
-                  id: goal.id,
-                  values: { current_value: Math.max(0, Number(goal.current_value) - 1) },
-                })
+                isDaily
+                  ? setDailyValue.mutate({ goal, value: current - 1 })
+                  : patchGoal.mutate({
+                      id: goal.id,
+                      values: { current_value: Math.max(0, current - 1) },
+                    })
               }
             >
               <Minus className="h-4 w-4" />
@@ -317,24 +390,22 @@ function GoalsPage() {
               className="w-24"
               type="number"
               min={0}
-              value={String(Number(goal.current_value))}
+              value={String(current)}
               aria-label={`Progress for ${goal.title}`}
-              onChange={(e) =>
-                patchGoal.mutate({
-                  id: goal.id,
-                  values: { current_value: Number(e.target.value) || 0 },
-                })
-              }
+              onChange={(e) => {
+                const value = Number(e.target.value) || 0;
+                if (isDaily) setDailyValue.mutate({ goal, value });
+                else patchGoal.mutate({ id: goal.id, values: { current_value: value } });
+              }}
             />
             <Button
               variant="outline"
               size="icon"
               aria-label={`Increase ${goal.title}`}
               onClick={() =>
-                patchGoal.mutate({
-                  id: goal.id,
-                  values: { current_value: Number(goal.current_value) + 1 },
-                })
+                isDaily
+                  ? setDailyValue.mutate({ goal, value: current + 1 })
+                  : patchGoal.mutate({ id: goal.id, values: { current_value: current + 1 } })
               }
             >
               <Plus className="h-4 w-4" />
@@ -342,7 +413,7 @@ function GoalsPage() {
           </div>
         )}
 
-        {goal.tracking === "checklist" && (
+        {usesChecklist && (
           <div className="mt-3 space-y-2">
             <ul className="space-y-1.5">
               {mine.map((m) => (
@@ -389,9 +460,7 @@ function GoalsPage() {
                   value={newMilestone[goal.id] ?? ""}
                   aria-label={`New milestone for ${goal.title}`}
                   placeholder="Add a milestone"
-                  onChange={(e) =>
-                    setNewMilestone((s) => ({ ...s, [goal.id]: e.target.value }))
-                  }
+                  onChange={(e) => setNewMilestone((s) => ({ ...s, [goal.id]: e.target.value }))}
                 />
                 <Button type="submit" variant="outline">
                   Add
@@ -419,6 +488,9 @@ function GoalsPage() {
     );
   };
 
+  const usesNumberDraft = draft?.tracking === "numeric" || draft?.tracking === "both";
+  const usesChecklistDraft = draft?.tracking === "checklist" || draft?.tracking === "both";
+
   return (
     <AppShell
       title="Goals"
@@ -433,7 +505,7 @@ function GoalsPage() {
         <div className="rounded-2xl border border-dashed border-border p-10 text-center">
           <Target className="mx-auto mb-3 h-6 w-6 text-muted-foreground" />
           <p className="text-muted-foreground">
-            No goals yet. Set a weekly, monthly or yearly target to work towards.
+            No goals yet. Set a daily, weekly, monthly or yearly target to work towards.
           </p>
         </div>
       ) : (
@@ -504,16 +576,25 @@ function GoalsPage() {
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="gtarget">Target date</Label>
-                  <Input
-                    id="gtarget"
-                    type="date"
-                    value={draft.target_date}
-                    onChange={(e) => setDraft({ ...draft, target_date: e.target.value })}
-                  />
-                </div>
+                {draft.period !== "daily" && (
+                  <div className="space-y-1.5">
+                    <Label htmlFor="gtarget">Target date</Label>
+                    <Input
+                      id="gtarget"
+                      type="date"
+                      value={draft.target_date}
+                      onChange={(e) => setDraft({ ...draft, target_date: e.target.value })}
+                    />
+                  </div>
+                )}
               </div>
+
+              {draft.period === "daily" && (
+                <p className="text-xs text-muted-foreground">
+                  Daily goals reset every day and keep their own streak — they never touch your
+                  habits or schedule.
+                </p>
+              )}
 
               <div className="space-y-1.5">
                 <Label>Category</Label>
@@ -539,34 +620,37 @@ function GoalsPage() {
                 <Label>Track progress by</Label>
                 <Select
                   value={draft.tracking}
-                  onValueChange={(v) =>
-                    setDraft({ ...draft, tracking: v as "numeric" | "checklist" })
-                  }
+                  onValueChange={(v) => setDraft({ ...draft, tracking: v as GoalTracking })}
                 >
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="numeric">A number target</SelectItem>
-                    <SelectItem value="checklist">A milestone checklist</SelectItem>
+                    {(Object.keys(TRACKING_LABEL) as GoalTracking[]).map((t) => (
+                      <SelectItem key={t} value={t}>
+                        {TRACKING_LABEL[t]}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
 
-              {draft.tracking === "numeric" && (
+              {usesNumberDraft && (
                 <div className="grid grid-cols-3 gap-3">
+                  {draft.period !== "daily" && (
+                    <div className="space-y-1.5">
+                      <Label htmlFor="gcur">Current</Label>
+                      <Input
+                        id="gcur"
+                        type="number"
+                        min={0}
+                        value={draft.current_value}
+                        onChange={(e) => setDraft({ ...draft, current_value: e.target.value })}
+                      />
+                    </div>
+                  )}
                   <div className="space-y-1.5">
-                    <Label htmlFor="gcur">Current</Label>
-                    <Input
-                      id="gcur"
-                      type="number"
-                      min={0}
-                      value={draft.current_value}
-                      onChange={(e) => setDraft({ ...draft, current_value: e.target.value })}
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label htmlFor="gtar">Target</Label>
+                    <Label htmlFor="gtar">{draft.period === "daily" ? "Daily target" : "Target"}</Label>
                     <Input
                       id="gtar"
                       type="number"
@@ -588,7 +672,7 @@ function GoalsPage() {
                 </div>
               )}
 
-              {draft.tracking === "checklist" && !draft.id && (
+              {usesChecklistDraft && !draft.id && (
                 <p className="text-xs text-muted-foreground">
                   Save the goal, then add milestones to it from the list.
                 </p>
