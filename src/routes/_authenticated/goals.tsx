@@ -360,19 +360,26 @@ function GoalsPage() {
         <div className="mt-3">
           <div className="mb-1.5 flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
             <span>
-              {usesNumber && (
+              {children.length > 0 ? (
+                `Rolled up from ${children.length} sub-goal${children.length === 1 ? "" : "s"}`
+              ) : (
                 <>
-                  {isDaily ? "Today " : ""}
-                  {current} / {Number(goal.target_value)}
-                  {goal.unit ? ` ${goal.unit}` : ""}
-                  {usesChecklist ? " · " : ""}
+                  {usesNumber && (
+                    <>
+                      {isDaily ? "Today " : ""}
+                      {current} / {Number(goal.target_value)}
+                      {goal.unit ? ` ${goal.unit}` : ""}
+                      {usesChecklist ? " · " : ""}
+                    </>
+                  )}
+                  {usesChecklist && `${mine.filter((m) => m.done).length} / ${mine.length} milestones`}
                 </>
               )}
-              {usesChecklist && `${mine.filter((m) => m.done).length} / ${mine.length} milestones`}
             </span>
             <span>{progress}%</span>
           </div>
           <Progress value={progress} />
+
           {tracking === "both" && (
             <p className="mt-1.5 text-[11px] text-muted-foreground">
               Blended: {goalNumericProgress(goal, logs, today)}% number ·{" "}
