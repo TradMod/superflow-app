@@ -342,7 +342,10 @@ export type RangeStats = {
   events: string[];
   completed: string[];
   missed: string[];
+  notes: string[];
+  effortByTask: { title: string; avgEffort: number; minutes: number; times: number }[];
 };
+
 
 export function computeRangeStats(input: {
   period: PeriodKind;
