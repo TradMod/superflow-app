@@ -41,8 +41,11 @@ import {
   goalChecklistProgress,
   goalCurrentValue,
   goalNumericProgress,
+  goalChildren,
   goalPace,
   goalProgress,
+  goalRollupProgress,
+  possibleParents,
   GOAL_PERIODS,
   todayKey,
   type Goal,
@@ -53,13 +56,13 @@ import {
 export const Route = createFileRoute("/_authenticated/goals")({
   head: () => ({
     meta: [
-      { title: "Goals — DayFlow" },
+      { title: "Goals — SuperFlow" },
       {
         name: "description",
         content:
           "Set daily, weekly, monthly and yearly goals and track them with numbers, milestones or both.",
       },
-      { property: "og:title", content: "Goals — DayFlow" },
+      { property: "og:title", content: "Goals — SuperFlow" },
       {
         property: "og:description",
         content:
@@ -102,6 +105,7 @@ type Draft = {
   target_value: string;
   current_value: string;
   unit: string;
+  parent_id: string;
 };
 
 const emptyDraft = (): Draft => ({
@@ -114,6 +118,7 @@ const emptyDraft = (): Draft => ({
   target_value: "10",
   current_value: "0",
   unit: "",
+  parent_id: "none",
 });
 
 const toDraft = (g: Goal): Draft => ({
@@ -127,6 +132,7 @@ const toDraft = (g: Goal): Draft => ({
   target_value: String(g.target_value),
   current_value: String(g.current_value),
   unit: g.unit ?? "",
+  parent_id: g.parent_id ?? "none",
 });
 
 function GoalsPage() {
@@ -160,6 +166,7 @@ function GoalsPage() {
         current_value:
           usesNumber && d.period !== "daily" ? Number(d.current_value) || 0 : 0,
         unit: d.unit.trim().slice(0, 24) || null,
+        parent_id: d.parent_id === "none" ? null : d.parent_id,
       };
       if (d.id) {
         const { error } = await supabase.from("goals").update(payload).eq("id", d.id);
