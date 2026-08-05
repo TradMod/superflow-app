@@ -473,7 +473,18 @@ export function computeRangeStats(input: {
     events,
     completed: uniq(completed).slice(0, 60),
     missed: uniq(missed).slice(0, 60),
+    notes: notes.slice(-40),
+    effortByTask: [...effortMap.values()]
+      .map((e) => ({
+        title: e.title,
+        avgEffort: e.times ? Math.round((e.total / e.times) * 10) / 10 : 0,
+        minutes: e.minutes,
+        times: e.times,
+      }))
+      .sort((a, b) => b.avgEffort - a.avgEffort)
+      .slice(0, 20),
   };
+
 }
 
 /* ---------------- Goals ---------------- */
