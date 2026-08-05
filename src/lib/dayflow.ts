@@ -3,6 +3,34 @@ import type { Tables } from "@/integrations/supabase/types";
 export type Task = Tables<"tasks">;
 export type Occurrence = Tables<"task_occurrences">;
 export type Category = Tables<"categories">;
+export type Subtask = Tables<"task_subtasks">;
+export type SubtaskLog = Tables<"task_subtask_logs">;
+
+/** Subtasks shown under a task on a given day: repeating ones + that day's one-offs. */
+export function subtasksForDay(
+  subtasks: Subtask[],
+  taskId: string,
+  dateKey: string,
+): Subtask[] {
+  return subtasks
+    .filter(
+      (s) =>
+        !s.archived &&
+        s.task_id === taskId &&
+        (s.recurring ? true : s.for_date === dateKey),
+    )
+    .sort((a, b) => a.position - b.position || a.created_at.localeCompare(b.created_at));
+}
+
+export function isSubtaskDone(
+  logs: SubtaskLog[],
+  subtaskId: string,
+  dateKey: string,
+): boolean {
+  return logs.some((l) => l.subtask_id === subtaskId && l.log_date === dateKey && l.done);
+}
+
+
 
 
 export const REPEAT_KINDS = ["none", "daily", "weekdays", "weekly", "monthly"] as const;
