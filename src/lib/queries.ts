@@ -8,8 +8,11 @@ import type {
   Occurrence,
   OverrideWithTasks,
   PeriodKind,
+  Subtask,
+  SubtaskLog,
   Task,
 } from "./dayflow";
+
 
 
 export const categoriesQuery = () =>
@@ -50,7 +53,36 @@ export const occurrencesQuery = (from: string, to: string) =>
     },
   });
 
+export const subtasksQuery = () =>
+  queryOptions({
+    queryKey: ["task_subtasks"],
+    queryFn: async (): Promise<Subtask[]> => {
+      const { data, error } = await supabase
+        .from("task_subtasks")
+        .select("*")
+        .eq("archived", false)
+        .order("position");
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
+export const subtaskLogsQuery = (from: string, to: string) =>
+  queryOptions({
+    queryKey: ["task_subtask_logs", from, to],
+    queryFn: async (): Promise<SubtaskLog[]> => {
+      const { data, error } = await supabase
+        .from("task_subtask_logs")
+        .select("*")
+        .gte("log_date", from)
+        .lte("log_date", to);
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
 export const goalDailyLogsQuery = () =>
+
   queryOptions({
     queryKey: ["goal_daily_logs"],
     queryFn: async (): Promise<GoalDailyLog[]> => {

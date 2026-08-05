@@ -151,6 +151,7 @@ export type Database = {
           current_value: number
           id: string
           notes: string | null
+          parent_id: string | null
           period: Database["public"]["Enums"]["goal_period"]
           start_date: string
           status: Database["public"]["Enums"]["goal_status"]
@@ -168,6 +169,7 @@ export type Database = {
           current_value?: number
           id?: string
           notes?: string | null
+          parent_id?: string | null
           period?: Database["public"]["Enums"]["goal_period"]
           start_date?: string
           status?: Database["public"]["Enums"]["goal_status"]
@@ -185,6 +187,7 @@ export type Database = {
           current_value?: number
           id?: string
           notes?: string | null
+          parent_id?: string | null
           period?: Database["public"]["Enums"]["goal_period"]
           start_date?: string
           status?: Database["public"]["Enums"]["goal_status"]
@@ -202,6 +205,13 @@ export type Database = {
             columns: ["category_id"]
             isOneToOne: false
             referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "goals_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "goals"
             referencedColumns: ["id"]
           },
         ]
@@ -387,6 +397,91 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "task_occurrences_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      task_subtask_logs: {
+        Row: {
+          created_at: string
+          done: boolean
+          id: string
+          log_date: string
+          subtask_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          done?: boolean
+          id?: string
+          log_date: string
+          subtask_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          done?: boolean
+          id?: string
+          log_date?: string
+          subtask_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "task_subtask_logs_subtask_id_fkey"
+            columns: ["subtask_id"]
+            isOneToOne: false
+            referencedRelation: "task_subtasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      task_subtasks: {
+        Row: {
+          archived: boolean
+          created_at: string
+          for_date: string | null
+          id: string
+          position: number
+          recurring: boolean
+          task_id: string
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          archived?: boolean
+          created_at?: string
+          for_date?: string | null
+          id?: string
+          position?: number
+          recurring?: boolean
+          task_id: string
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          archived?: boolean
+          created_at?: string
+          for_date?: string | null
+          id?: string
+          position?: number
+          recurring?: boolean
+          task_id?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "task_subtasks_task_id_fkey"
             columns: ["task_id"]
             isOneToOne: false
             referencedRelation: "tasks"

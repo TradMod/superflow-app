@@ -29,14 +29,38 @@ const StatsInput = z.object({
   missed: z.array(z.string()),
   tomorrowTasks: z.array(z.string()),
   streaks: z.array(z.object({ title: z.string(), days: z.number() })),
+  notes: z.array(z.string()).default([]),
+  effortByTask: z
+    .array(
+      z.object({
+        title: z.string(),
+        avgEffort: z.number(),
+        minutes: z.number(),
+        times: z.number(),
+      }),
+    )
+    .default([]),
+  subtasks: z
+    .array(z.object({ parent: z.string(), title: z.string(), done: z.boolean() }))
+    .default([]),
 });
 
 type Stats = z.infer<typeof StatsInput>;
 
+const COACH = [
+  "You are the user's personal coach and accountability partner inside SuperFlow.",
+  "You are warm underneath but brutally honest on the surface: a motivational speaker who refuses to flatter.",
+  "Call out excuses directly, name the exact tasks and numbers, and never pad with generic praise.",
+  "Weigh effort levels (1-5) as heavily as completion: high effort on few tasks is respectable, low effort everywhere is coasting, and high effort with low completion means the plan is wrong, not the person.",
+  "Read the user's own notes closely and respond to what they actually wrote — quote or reference them.",
+  "Days excused by events are deliberate, never failures. Do not scold those.",
+  "Plain text only, no markdown, no greetings, no sign-off. Second person.",
+].join(" ");
+
 const SYSTEM: Record<Stats["period"], string> = {
-  day: "You are a warm, direct personal productivity coach. Given one day of task data, write a short review in plain text (no markdown) with three labelled parts: 'What went well', 'What slipped', and 'Tomorrow'. Keep the whole thing under 160 words, use second person, be specific about the actual task names and numbers given, and end with 2-3 concrete suggestions for tomorrow. No greetings, no fluff.",
-  week: "You are a warm, direct personal productivity coach. Given one week of task data, write a weekly review in plain text (no markdown) with three labelled parts: 'Patterns', 'Consistency', and 'Next week'. Focus on patterns across days and habit consistency rather than individual tasks. Keep it under 200 words, use second person, cite real numbers and habit names, and end with 2-3 concrete adjustments for next week. No greetings, no fluff.",
-  month: "You are a warm, direct personal productivity coach. Given one month of task data, write a monthly review in plain text (no markdown) with three labelled parts: 'Trend', 'Drift', and 'Next month'. Focus on how the month trended week over week, which habits held and which drifted, and where time actually went. Keep it under 220 words, use second person, cite real numbers, and end with 2-3 concrete changes for next month. No greetings, no fluff.",
+  day: `${COACH} Write a daily review with three labelled parts: 'Straight talk', 'What it cost you', and 'Tomorrow'. Under 180 words, ending with 2-3 concrete, non-negotiable actions for tomorrow.`,
+  week: `${COACH} Write a weekly review with three labelled parts: 'Straight talk', 'Patterns and effort', and 'Next week'. Focus on patterns across days, habit consistency and where effort dropped. Under 220 words, ending with 2-3 concrete adjustments.`,
+  month: `${COACH} Write a monthly review with three labelled parts: 'Straight talk', 'Trend and drift', and 'Next month'. Focus on how the month trended week over week, which habits held, and where effort and time really went. Under 240 words, ending with 2-3 concrete changes.`,
 };
 
 function buildPrompt(data: Stats): string {
@@ -47,6 +71,8 @@ function buildPrompt(data: Stats): string {
     `Time by category: ${data.byCategory.map((c) => `${c.name} ${c.minutes}m (${c.done} tasks)`).join(", ") || "none"}`,
     `Habit consistency: ${data.habits.map((h) => `${h.title} ${h.done}/${h.scheduled} days (${h.rate}%)`).join(", ") || "none"}`,
     `Live habit streaks: ${data.streaks.map((s) => `${s.title} ${s.days}d`).join(", ") || "none"}`,
+    `Effort per task (avg 1-5): ${data.effortByTask.map((e) => `${e.title} ${e.avgEffort}/5 over ${e.times} time(s), ${e.minutes}m`).join(", ") || "none recorded"}`,
+    `User's own notes (their words — respond to these): ${data.notes.join(" | ") || "none written"}`,
     `Days excused by events: ${data.excusedDays}${data.events.length ? ` (${data.events.join(", ")}) — these were deliberately taken off, do not treat them as failures` : ""}`,
   ];
 
@@ -54,6 +80,7 @@ function buildPrompt(data: Stats): string {
     lines.push(
       `Completed: ${data.completed.join(", ") || "nothing"}`,
       `Not completed: ${data.missed.join(", ") || "nothing"}`,
+      `Subtasks today: ${data.subtasks.map((t) => `${t.parent} → ${t.title} ${t.done ? "done" : "not done"}`).join(", ") || "none"}`,
       `On the table tomorrow — tasks: ${data.tomorrowTasks.join(", ") || "nothing scheduled yet"}`,
     );
   } else {
@@ -79,7 +106,7 @@ export const generatePeriodSummary = createServerFn({ method: "POST" })
     let text: string;
     try {
       const result = await generateText({
-        model: gateway("google/gemini-3.5-flash"),
+        model: gateway("google/gemini-3.6-flash"),
         system: SYSTEM[data.period],
         prompt: buildPrompt(data),
       });

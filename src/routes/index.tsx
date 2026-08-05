@@ -5,17 +5,17 @@ import { Button } from "@/components/ui/button";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "DayFlow — Plan your day, track habits, review with AI" },
+      { title: "SuperFlow — Plan your day, track habits, review with AI" },
       {
         name: "description",
         content:
-          "DayFlow keeps your routines, events and goals in one place, tracks effort and time on every task, and writes you a daily, weekly or monthly review.",
+          "SuperFlow keeps your routines, events and goals in one place, tracks effort and time on every task, and writes you a daily, weekly or monthly review.",
       },
-      { property: "og:title", content: "DayFlow — Plan your day, track habits, review with AI" },
+      { property: "og:title", content: "SuperFlow — Plan your day, track habits, review with AI" },
       {
         property: "og:description",
         content:
-          "DayFlow keeps your routines, events and goals in one place, tracks effort and time on every task, and writes you a daily, weekly or monthly review.",
+          "SuperFlow keeps your routines, events and goals in one place, tracks effort and time on every task, and writes you a daily, weekly or monthly review.",
       },
     ],
   }),
@@ -60,7 +60,7 @@ function Landing() {
   return (
     <div className="min-h-screen bg-background">
       <header className="mx-auto flex max-w-5xl items-center justify-between px-6 py-6">
-        <span className="font-display text-2xl">DayFlow</span>
+        <span className="font-display text-2xl">SuperFlow</span>
         <Button asChild variant="ghost">
           <Link to="/auth">Sign in</Link>
         </Button>

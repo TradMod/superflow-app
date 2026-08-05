@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
-import { Check, Clock, Flame, SkipForward } from "lucide-react";
+import { Check, Clock, Flame, Plus, Repeat, SkipForward, X } from "lucide-react";
 import { toast } from "sonner";
 import { AppShell } from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
@@ -19,13 +19,23 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
-import { categoriesQuery, currentUserId, occurrencesQuery, overridesQuery, tasksQuery } from "@/lib/queries";
+import {
+  categoriesQuery,
+  currentUserId,
+  occurrencesQuery,
+  overridesQuery,
+  subtaskLogsQuery,
+  subtasksQuery,
+  tasksQuery,
+} from "@/lib/queries";
 import {
   addDays,
   buildDay,
   computeDayStats,
   computeStreak,
   formatTime,
+  isSubtaskDone,
+  subtasksForDay,
   todayKey,
   type DayItem,
 } from "@/lib/dayflow";
@@ -33,10 +43,13 @@ import {
 export const Route = createFileRoute("/_authenticated/today")({
   head: () => ({
     meta: [
-      { title: "Today — DayFlow" },
-      { name: "description", content: "Your routines, schedule and reminders for today." },
-      { property: "og:title", content: "Today — DayFlow" },
-      { property: "og:description", content: "Your routines, schedule and reminders for today." },
+      { title: "Today — SuperFlow" },
+      { name: "description", content: "Your routines, schedule and daily subtasks for today." },
+      { property: "og:title", content: "Today — SuperFlow" },
+      {
+        property: "og:description",
+        content: "Your routines, schedule and daily subtasks for today.",
+      },
     ],
   }),
   component: TodayPage,
@@ -50,10 +63,14 @@ function TodayPage() {
   const tasks = useQuery(tasksQuery());
   const occurrences = useQuery(occurrencesQuery(from, today));
   const categories = useQuery(categoriesQuery());
-  
   const overrides = useQuery(overridesQuery());
+  const subtasks = useQuery(subtasksQuery());
+  const subtaskLogs = useQuery(subtaskLogsQuery(today, today));
 
   const [active, setActive] = useState<DayItem | null>(null);
+  const [adding, setAdding] = useState<string | null>(null);
+  const [newTitle, setNewTitle] = useState("");
+  const [newRecurring, setNewRecurring] = useState(false);
 
   const items = useMemo(
     () => buildDay(tasks.data ?? [], occurrences.data ?? [], today, overrides.data ?? []),
@@ -63,8 +80,6 @@ function TodayPage() {
     () => computeDayStats(items, categories.data ?? [], today),
     [items, categories.data, today],
   );
-
-  
 
   const setStatus = useMutation({
     mutationFn: async (input: {
@@ -97,7 +112,62 @@ function TodayPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const invalidateSubtasks = () => {
+    void qc.invalidateQueries({ queryKey: ["task_subtasks"] });
+    void qc.invalidateQueries({ queryKey: ["task_subtask_logs"] });
+  };
+
+  const addSubtask = useMutation({
+    mutationFn: async (input: { taskId: string; title: string; recurring: boolean; position: number }) => {
+      if (!input.title.trim()) throw new Error("Name the subtask first.");
+      const userId = await currentUserId();
+      const { error } = await supabase.from("task_subtasks").insert({
+        user_id: userId,
+        task_id: input.taskId,
+        title: input.title.trim().slice(0, 140),
+        recurring: input.recurring,
+        for_date: input.recurring ? null : today,
+        position: input.position,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      invalidateSubtasks();
+      setNewTitle("");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const toggleSubtask = useMutation({
+    mutationFn: async (input: { subtaskId: string; done: boolean }) => {
+      const userId = await currentUserId();
+      const { error } = await supabase.from("task_subtask_logs").upsert(
+        {
+          user_id: userId,
+          subtask_id: input.subtaskId,
+          log_date: today,
+          done: input.done,
+        },
+        { onConflict: "subtask_id,log_date" },
+      );
+      if (error) throw error;
+    },
+    onSuccess: invalidateSubtasks,
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const removeSubtask = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("task_subtasks").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: invalidateSubtasks,
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   const loading = tasks.isLoading || occurrences.isLoading;
+  const allSubtasks = subtasks.data ?? [];
+  const logs = subtaskLogs.data ?? [];
 
   return (
     <AppShell
@@ -118,7 +188,6 @@ function TodayPage() {
         <Progress value={stats.completionRate} className="mt-4" />
       </div>
 
-
       {loading ? (
         <p className="text-sm text-muted-foreground">Loading your day…</p>
       ) : items.length === 0 ? (
@@ -134,67 +203,172 @@ function TodayPage() {
             const streak = item.task.is_habit
               ? computeStreak(item.task, occurrences.data ?? [], today, overrides.data ?? [])
               : 0;
+            const subs = subtasksForDay(allSubtasks, item.task.id, today);
+            const subsDone = subs.filter((s) => isSubtaskDone(logs, s.id, today)).length;
+            const isAdding = adding === item.task.id;
             return (
               <li
                 key={item.task.id}
-                className={`flex items-start gap-3 rounded-xl border border-border bg-card p-4 transition-colors ${
+                className={`rounded-xl border border-border bg-card p-4 transition-colors ${
                   item.status === "done" ? "opacity-70" : ""
                 }`}
               >
-                <button
-                  type="button"
-                  aria-label={item.status === "done" ? "Mark as not done" : `Complete ${item.task.title}`}
-                  onClick={() =>
-                    item.status === "done"
-                      ? setStatus.mutate({ item, status: "pending" })
-                      : setActive(item)
-                  }
-                  className={`mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border transition-all ${
-                    item.status === "done"
-                      ? "border-primary bg-primary text-primary-foreground"
-                      : "border-muted-foreground/40 hover:border-primary"
-                  }`}
-                >
-                  {item.status === "done" && <Check className="h-3.5 w-3.5" />}
-                </button>
+                <div className="flex items-start gap-3">
+                  <button
+                    type="button"
+                    aria-label={item.status === "done" ? "Mark as not done" : `Complete ${item.task.title}`}
+                    onClick={() =>
+                      item.status === "done"
+                        ? setStatus.mutate({ item, status: "pending" })
+                        : setActive(item)
+                    }
+                    className={`mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border transition-all ${
+                      item.status === "done"
+                        ? "border-primary bg-primary text-primary-foreground"
+                        : "border-muted-foreground/40 hover:border-primary"
+                    }`}
+                  >
+                    {item.status === "done" && <Check className="h-3.5 w-3.5" />}
+                  </button>
 
-                <div className="min-w-0 flex-1">
-                  <p className={`font-medium ${item.status === "done" ? "line-through" : ""}`}>
-                    {item.task.title}
-                  </p>
-                  <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                    {item.task.start_time && (
-                      <span className="inline-flex items-center gap-1">
-                        <Clock className="h-3 w-3" />
-                        {formatTime(item.task.start_time)}
-                        {item.task.end_time ? ` – ${formatTime(item.task.end_time)}` : ""}
-                      </span>
-                    )}
-                    {category && <Badge variant="secondary">{category.name}</Badge>}
-                    {item.task.is_habit && streak > 0 && (
-                      <span className="inline-flex items-center gap-1 text-primary">
-                        <Flame className="h-3 w-3" /> {streak}d streak
-                      </span>
-                    )}
-                    {item.status === "done" && item.occurrence && (
-                      <span>
-                        effort {item.occurrence.effort ?? "—"} · {item.occurrence.minutes_spent ?? 0}m
-                      </span>
-                    )}
-                    {item.status === "skipped" && <span>skipped</span>}
+                  <div className="min-w-0 flex-1">
+                    <p className={`font-medium ${item.status === "done" ? "line-through" : ""}`}>
+                      {item.task.title}
+                    </p>
+                    <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                      {item.task.start_time && (
+                        <span className="inline-flex items-center gap-1">
+                          <Clock className="h-3 w-3" />
+                          {formatTime(item.task.start_time)}
+                          {item.task.end_time ? ` – ${formatTime(item.task.end_time)}` : ""}
+                        </span>
+                      )}
+                      {category && <Badge variant="secondary">{category.name}</Badge>}
+                      {item.task.is_habit && streak > 0 && (
+                        <span className="inline-flex items-center gap-1 text-primary">
+                          <Flame className="h-3 w-3" /> {streak}d streak
+                        </span>
+                      )}
+                      {subs.length > 0 && (
+                        <span>
+                          {subsDone}/{subs.length} subtasks
+                        </span>
+                      )}
+                      {item.status === "done" && item.occurrence && (
+                        <span>
+                          effort {item.occurrence.effort ?? "—"} · {item.occurrence.minutes_spent ?? 0}m
+                        </span>
+                      )}
+                      {item.status === "skipped" && <span>skipped</span>}
+                    </div>
                   </div>
+
+                  {item.status === "pending" && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      aria-label={`Skip ${item.task.title}`}
+                      onClick={() => setStatus.mutate({ item, status: "skipped" })}
+                    >
+                      <SkipForward className="h-4 w-4" />
+                    </Button>
+                  )}
                 </div>
 
-                {item.status === "pending" && (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    aria-label={`Skip ${item.task.title}`}
-                    onClick={() => setStatus.mutate({ item, status: "skipped" })}
-                  >
-                    <SkipForward className="h-4 w-4" />
-                  </Button>
-                )}
+                <div className="mt-2 space-y-1.5 pl-9">
+                  {subs.map((s) => {
+                    const done = isSubtaskDone(logs, s.id, today);
+                    return (
+                      <div key={s.id} className="flex items-center gap-2 text-sm">
+                        <button
+                          type="button"
+                          aria-label={done ? `Undo ${s.title}` : `Complete ${s.title}`}
+                          onClick={() => toggleSubtask.mutate({ subtaskId: s.id, done: !done })}
+                          className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border ${
+                            done
+                              ? "border-primary bg-primary text-primary-foreground"
+                              : "border-muted-foreground/40"
+                          }`}
+                        >
+                          {done && <Check className="h-3 w-3" />}
+                        </button>
+                        <span className={`flex-1 ${done ? "line-through opacity-70" : ""}`}>
+                          {s.title}
+                        </span>
+                        {s.recurring && (
+                          <Repeat className="h-3 w-3 text-muted-foreground" aria-label="repeats daily" />
+                        )}
+                        <button
+                          type="button"
+                          aria-label={`Delete ${s.title}`}
+                          className="text-muted-foreground hover:text-destructive"
+                          onClick={() => removeSubtask.mutate(s.id)}
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    );
+                  })}
+
+                  {isAdding ? (
+                    <form
+                      className="space-y-2 pt-1"
+                      onSubmit={(e) => {
+                        e.preventDefault();
+                        addSubtask.mutate({
+                          taskId: item.task.id,
+                          title: newTitle,
+                          recurring: newRecurring,
+                          position: subs.length,
+                        });
+                      }}
+                    >
+                      <div className="flex gap-2">
+                        <Input
+                          autoFocus
+                          value={newTitle}
+                          aria-label={`New subtask for ${item.task.title}`}
+                          placeholder="e.g. Finish bug report"
+                          onChange={(e) => setNewTitle(e.target.value)}
+                        />
+                        <Button type="submit" variant="outline" size="sm">
+                          Add
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            setAdding(null);
+                            setNewTitle("");
+                          }}
+                        >
+                          Cancel
+                        </Button>
+                      </div>
+                      <label className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <input
+                          type="checkbox"
+                          checked={newRecurring}
+                          onChange={(e) => setNewRecurring(e.target.checked)}
+                        />
+                        Repeat this subtask every day
+                      </label>
+                    </form>
+                  ) : (
+                    <button
+                      type="button"
+                      className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+                      onClick={() => {
+                        setAdding(item.task.id);
+                        setNewTitle("");
+                        setNewRecurring(false);
+                      }}
+                    >
+                      <Plus className="h-3 w-3" /> Add subtask
+                    </button>
+                  )}
+                </div>
               </li>
             );
           })}
@@ -270,7 +444,13 @@ function CompleteDialog({
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="note">Note (optional)</Label>
-            <Textarea id="note" value={note} onChange={(e) => setNote(e.target.value)} rows={2} />
+            <Textarea
+              id="note"
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              rows={2}
+              placeholder="How did it go? Your coach reads these."
+            />
           </div>
         </div>
         <DialogFooter>

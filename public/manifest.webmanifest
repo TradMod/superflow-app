@@ -1,6 +1,6 @@
 {
-  "name": "DayFlow — habits, schedule and goals",
-  "short_name": "DayFlow",
+  "name": "SuperFlow — habits, schedule and goals",
+  "short_name": "SuperFlow",
   "description": "Plan your day, track habits and goals, and get AI reviews of how your time went.",
   "start_url": "/today",
   "scope": "/",

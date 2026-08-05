@@ -12,10 +12,10 @@ export const Route = createFileRoute("/auth")({
   ssr: false,
   head: () => ({
     meta: [
-      { title: "Sign in — DayFlow" },
-      { name: "description", content: "Sign in to DayFlow to plan your day and track your habits." },
-      { property: "og:title", content: "Sign in — DayFlow" },
-      { property: "og:description", content: "Sign in to DayFlow to plan your day and track your habits." },
+      { title: "Sign in — SuperFlow" },
+      { name: "description", content: "Sign in to SuperFlow to plan your day and track your habits." },
+      { property: "og:title", content: "Sign in — SuperFlow" },
+      { property: "og:description", content: "Sign in to SuperFlow to plan your day and track your habits." },
     ],
   }),
   component: AuthPage,
@@ -86,7 +86,7 @@ function AuthPage() {
     <div className="flex min-h-screen items-center justify-center bg-background px-5 py-10">
       <div className="w-full max-w-sm">
         <Link to="/" className="mb-8 block text-center font-display text-3xl">
-          DayFlow
+          SuperFlow
         </Link>
 
         {sent ? (

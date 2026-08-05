@@ -39,9 +39,9 @@ import {
 export const Route = createFileRoute("/_authenticated/plan")({
   head: () => ({
     meta: [
-      { title: "Plan — DayFlow" },
+      { title: "Plan — SuperFlow" },
       { name: "description", content: "Create routines and repeating schedules for your days." },
-      { property: "og:title", content: "Plan — DayFlow" },
+      { property: "og:title", content: "Plan — SuperFlow" },
       { property: "og:description", content: "Create routines and repeating schedules for your days." },
     ],
   }),

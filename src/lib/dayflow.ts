@@ -3,6 +3,34 @@ import type { Tables } from "@/integrations/supabase/types";
 export type Task = Tables<"tasks">;
 export type Occurrence = Tables<"task_occurrences">;
 export type Category = Tables<"categories">;
+export type Subtask = Tables<"task_subtasks">;
+export type SubtaskLog = Tables<"task_subtask_logs">;
+
+/** Subtasks shown under a task on a given day: repeating ones + that day's one-offs. */
+export function subtasksForDay(
+  subtasks: Subtask[],
+  taskId: string,
+  dateKey: string,
+): Subtask[] {
+  return subtasks
+    .filter(
+      (s) =>
+        !s.archived &&
+        s.task_id === taskId &&
+        (s.recurring ? true : s.for_date === dateKey),
+    )
+    .sort((a, b) => a.position - b.position || a.created_at.localeCompare(b.created_at));
+}
+
+export function isSubtaskDone(
+  logs: SubtaskLog[],
+  subtaskId: string,
+  dateKey: string,
+): boolean {
+  return logs.some((l) => l.subtask_id === subtaskId && l.log_date === dateKey && l.done);
+}
+
+
 
 
 export const REPEAT_KINDS = ["none", "daily", "weekdays", "weekly", "monthly"] as const;
@@ -143,7 +171,10 @@ export type DayStats = {
   byCategory: { name: string; minutes: number; done: number }[];
   missed: string[];
   completed: string[];
+  notes: { title: string; note: string }[];
+  efforts: { title: string; effort: number | null; minutes: number }[];
 };
+
 
 export function computeDayStats(
   items: DayItem[],
@@ -183,7 +214,18 @@ export function computeDayStats(
     byCategory: [...catMap.values()].sort((a, b) => b.minutes - a.minutes),
     missed: items.filter((i) => i.status !== "done").map((i) => i.task.title),
     completed: items.filter((i) => i.status === "done").map((i) => i.task.title),
+    notes: items
+      .filter((i) => (i.occurrence?.note ?? "").trim().length > 0)
+      .map((i) => ({ title: i.task.title, note: (i.occurrence?.note ?? "").trim() })),
+    efforts: items
+      .filter((i) => i.status === "done")
+      .map((i) => ({
+        title: i.task.title,
+        effort: i.occurrence?.effort ?? null,
+        minutes: i.occurrence?.minutes_spent ?? 0,
+      })),
   };
+
 }
 
 /**
@@ -300,7 +342,10 @@ export type RangeStats = {
   events: string[];
   completed: string[];
   missed: string[];
+  notes: string[];
+  effortByTask: { title: string; avgEffort: number; minutes: number; times: number }[];
 };
+
 
 export function computeRangeStats(input: {
   period: PeriodKind;
@@ -320,6 +365,8 @@ export function computeRangeStats(input: {
   const catMap = new Map<string, { name: string; minutes: number; done: number }>();
   const completed: string[] = [];
   const missed: string[] = [];
+  const notes: string[] = [];
+  const effortMap = new Map<string, { title: string; total: number; times: number; minutes: number }>();
   let planned = 0;
   let done = 0;
   let skipped = 0;
@@ -343,6 +390,16 @@ export function computeRangeStats(input: {
     for (const item of items) {
       if (typeof item.occurrence?.effort === "number") efforts.push(item.occurrence.effort);
     }
+    for (const e of stats.efforts) {
+      const entry = effortMap.get(e.title) ?? { title: e.title, total: 0, times: 0, minutes: 0 };
+      if (typeof e.effort === "number") {
+        entry.total += e.effort;
+        entry.times += 1;
+      }
+      entry.minutes += e.minutes;
+      effortMap.set(e.title, entry);
+    }
+    for (const n of stats.notes) notes.push(`${dateKey} · ${n.title}: ${n.note}`);
     for (const c of stats.byCategory) {
       const entry = catMap.get(c.name) ?? { name: c.name, minutes: 0, done: 0 };
       entry.minutes += c.minutes;
@@ -352,6 +409,7 @@ export function computeRangeStats(input: {
     completed.push(...stats.completed);
     missed.push(...stats.missed);
   }
+
 
   const habits = tasks
     .filter((t) => t.is_habit)
@@ -415,7 +473,18 @@ export function computeRangeStats(input: {
     events,
     completed: uniq(completed).slice(0, 60),
     missed: uniq(missed).slice(0, 60),
+    notes: notes.slice(-40),
+    effortByTask: [...effortMap.values()]
+      .map((e) => ({
+        title: e.title,
+        avgEffort: e.times ? Math.round((e.total / e.times) * 10) / 10 : 0,
+        minutes: e.minutes,
+        times: e.times,
+      }))
+      .sort((a, b) => b.avgEffort - a.avgEffort)
+      .slice(0, 20),
   };
+
 }
 
 /* ---------------- Goals ---------------- */
@@ -534,3 +603,38 @@ export function goalPace(goal: Goal, progress: number): "done" | "on track" | "b
   return progress + 5 >= expected ? "on track" : "behind";
 }
 
+
+/** Direct sub-goals of a goal. */
+export function goalChildren(goal: Goal, all: Goal[]): Goal[] {
+  return all.filter((g) => g.parent_id === goal.id && g.status !== "archived");
+}
+
+/**
+ * Progress that rolls sub-goals up: a goal with children averages their
+ * rolled-up progress; a leaf goal uses its own number/checklist progress.
+ */
+export function goalRollupProgress(
+  goal: Goal,
+  all: Goal[],
+  milestones: GoalMilestone[],
+  dailyLogs: GoalDailyLog[] = [],
+  dateKey: string = todayKey(),
+  depth = 0,
+): number {
+  const children = depth > 4 ? [] : goalChildren(goal, all);
+  if (children.length === 0) return goalProgress(goal, milestones, dailyLogs, dateKey);
+  const sum = children.reduce(
+    (acc, child) =>
+      acc + goalRollupProgress(child, all, milestones, dailyLogs, dateKey, depth + 1),
+    0,
+  );
+  return clampPercent(sum / children.length);
+}
+
+/** Goals that may act as a parent for a goal of the given period. */
+export function possibleParents(all: Goal[], period: GoalPeriod, selfId?: string): Goal[] {
+  const rank: Record<GoalPeriod, number> = { daily: 0, weekly: 1, monthly: 2, yearly: 3 };
+  return all.filter(
+    (g) => g.id !== selfId && rank[g.period as GoalPeriod] > rank[period] && g.parent_id !== selfId,
+  );
+}

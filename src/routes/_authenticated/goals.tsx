@@ -41,8 +41,11 @@ import {
   goalChecklistProgress,
   goalCurrentValue,
   goalNumericProgress,
+  goalChildren,
   goalPace,
   goalProgress,
+  goalRollupProgress,
+  possibleParents,
   GOAL_PERIODS,
   todayKey,
   type Goal,
@@ -53,13 +56,13 @@ import {
 export const Route = createFileRoute("/_authenticated/goals")({
   head: () => ({
     meta: [
-      { title: "Goals — DayFlow" },
+      { title: "Goals — SuperFlow" },
       {
         name: "description",
         content:
           "Set daily, weekly, monthly and yearly goals and track them with numbers, milestones or both.",
       },
-      { property: "og:title", content: "Goals — DayFlow" },
+      { property: "og:title", content: "Goals — SuperFlow" },
       {
         property: "og:description",
         content:
@@ -102,6 +105,7 @@ type Draft = {
   target_value: string;
   current_value: string;
   unit: string;
+  parent_id: string;
 };
 
 const emptyDraft = (): Draft => ({
@@ -114,6 +118,7 @@ const emptyDraft = (): Draft => ({
   target_value: "10",
   current_value: "0",
   unit: "",
+  parent_id: "none",
 });
 
 const toDraft = (g: Goal): Draft => ({
@@ -127,6 +132,7 @@ const toDraft = (g: Goal): Draft => ({
   target_value: String(g.target_value),
   current_value: String(g.current_value),
   unit: g.unit ?? "",
+  parent_id: g.parent_id ?? "none",
 });
 
 function GoalsPage() {
@@ -160,6 +166,7 @@ function GoalsPage() {
         current_value:
           usesNumber && d.period !== "daily" ? Number(d.current_value) || 0 : 0,
         unit: d.unit.trim().slice(0, 24) || null,
+        parent_id: d.parent_id === "none" ? null : d.parent_id,
       };
       if (d.id) {
         const { error } = await supabase.from("goals").update(payload).eq("id", d.id);
@@ -274,7 +281,12 @@ function GoalsPage() {
     const isDaily = goal.period === "daily";
     const usesNumber = tracking === "numeric" || tracking === "both";
     const usesChecklist = tracking === "checklist" || tracking === "both";
-    const progress = goalProgress(goal, ms, logs, today);
+    const children = goalChildren(goal, all);
+    const progress =
+      children.length > 0
+        ? goalRollupProgress(goal, all, ms, logs, today)
+        : goalProgress(goal, ms, logs, today);
+
     const pace = goalPace(goal, progress);
     const left = daysLeft(goal.target_date);
     const category = (categories.data ?? []).find((c) => c.id === goal.category_id);
@@ -348,19 +360,26 @@ function GoalsPage() {
         <div className="mt-3">
           <div className="mb-1.5 flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
             <span>
-              {usesNumber && (
+              {children.length > 0 ? (
+                `Rolled up from ${children.length} sub-goal${children.length === 1 ? "" : "s"}`
+              ) : (
                 <>
-                  {isDaily ? "Today " : ""}
-                  {current} / {Number(goal.target_value)}
-                  {goal.unit ? ` ${goal.unit}` : ""}
-                  {usesChecklist ? " · " : ""}
+                  {usesNumber && (
+                    <>
+                      {isDaily ? "Today " : ""}
+                      {current} / {Number(goal.target_value)}
+                      {goal.unit ? ` ${goal.unit}` : ""}
+                      {usesChecklist ? " · " : ""}
+                    </>
+                  )}
+                  {usesChecklist && `${mine.filter((m) => m.done).length} / ${mine.length} milestones`}
                 </>
               )}
-              {usesChecklist && `${mine.filter((m) => m.done).length} / ${mine.length} milestones`}
             </span>
             <span>{progress}%</span>
           </div>
           <Progress value={progress} />
+
           {tracking === "both" && (
             <p className="mt-1.5 text-[11px] text-muted-foreground">
               Blended: {goalNumericProgress(goal, logs, today)}% number ·{" "}
@@ -484,6 +503,15 @@ function GoalsPage() {
             {goal.status === "achieved" ? "Reopen goal" : "Mark achieved"}
           </Button>
         </div>
+
+        {children.length > 0 && (
+          <div className="mt-4 border-l-2 border-border pl-3">
+            <p className="mb-2 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
+              Sub-goals
+            </p>
+            <ul className="space-y-3">{children.map((c) => renderGoal(c))}</ul>
+          </div>
+        )}
       </li>
     );
   };
@@ -511,14 +539,14 @@ function GoalsPage() {
       ) : (
         <div className="space-y-8">
           {GOAL_PERIODS.map((p) => {
-            const items = active.filter((g) => g.period === p);
+            const items = active.filter((g) => g.period === p && !g.parent_id);
             if (items.length === 0) return null;
             return (
               <section key={p}>
                 <h2 className="mb-2 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
                   {PERIOD_LABEL[p]}
                 </h2>
-                <ul className="space-y-3">{items.map(renderGoal)}</ul>
+                <ul className="space-y-3">{items.map((g) => renderGoal(g))}</ul>
               </section>
             );
           })}
@@ -527,7 +555,7 @@ function GoalsPage() {
               <h2 className="mb-2 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
                 Achieved
               </h2>
-              <ul className="space-y-3">{achieved.map(renderGoal)}</ul>
+              <ul className="space-y-3">{achieved.filter((g) => !g.parent_id).map((g) => renderGoal(g))}</ul>
             </section>
           )}
         </div>
@@ -595,6 +623,32 @@ function GoalsPage() {
                   habits or schedule.
                 </p>
               )}
+
+              {possibleParents(all, draft.period, draft.id).length > 0 && (
+                <div className="space-y-1.5">
+                  <Label>Part of a bigger goal</Label>
+                  <Select
+                    value={draft.parent_id}
+                    onValueChange={(v) => setDraft({ ...draft, parent_id: v })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Standalone goal</SelectItem>
+                      {possibleParents(all, draft.period, draft.id).map((g) => (
+                        <SelectItem key={g.id} value={g.id}>
+                          {PERIOD_LABEL[g.period as GoalPeriod]} · {g.title}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">
+                    A parent goal's progress is the average of its sub-goals.
+                  </p>
+                </div>
+              )}
+
 
               <div className="space-y-1.5">
                 <Label>Category</Label>

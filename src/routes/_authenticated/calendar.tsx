@@ -11,9 +11,9 @@ import { buildDay, formatTime, fromDateKey, overridesOn, toDateKey, todayKey } f
 export const Route = createFileRoute("/_authenticated/calendar")({
   head: () => ({
     meta: [
-      { title: "Calendar — DayFlow" },
+      { title: "Calendar — SuperFlow" },
       { name: "description", content: "See your schedule and reminders across the month." },
-      { property: "og:title", content: "Calendar — DayFlow" },
+      { property: "og:title", content: "Calendar — SuperFlow" },
       { property: "og:description", content: "See your schedule and reminders across the month." },
     ],
   }),
