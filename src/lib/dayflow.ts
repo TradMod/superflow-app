@@ -603,3 +603,38 @@ export function goalPace(goal: Goal, progress: number): "done" | "on track" | "b
   return progress + 5 >= expected ? "on track" : "behind";
 }
 
+
+/** Direct sub-goals of a goal. */
+export function goalChildren(goal: Goal, all: Goal[]): Goal[] {
+  return all.filter((g) => g.parent_id === goal.id && g.status !== "archived");
+}
+
+/**
+ * Progress that rolls sub-goals up: a goal with children averages their
+ * rolled-up progress; a leaf goal uses its own number/checklist progress.
+ */
+export function goalRollupProgress(
+  goal: Goal,
+  all: Goal[],
+  milestones: GoalMilestone[],
+  dailyLogs: GoalDailyLog[] = [],
+  dateKey: string = todayKey(),
+  depth = 0,
+): number {
+  const children = depth > 4 ? [] : goalChildren(goal, all);
+  if (children.length === 0) return goalProgress(goal, milestones, dailyLogs, dateKey);
+  const sum = children.reduce(
+    (acc, child) =>
+      acc + goalRollupProgress(child, all, milestones, dailyLogs, dateKey, depth + 1),
+    0,
+  );
+  return clampPercent(sum / children.length);
+}
+
+/** Goals that may act as a parent for a goal of the given period. */
+export function possibleParents(all: Goal[], period: GoalPeriod, selfId?: string): Goal[] {
+  const rank: Record<GoalPeriod, number> = { daily: 0, weekly: 1, monthly: 2, yearly: 3 };
+  return all.filter(
+    (g) => g.id !== selfId && rank[g.period as GoalPeriod] > rank[period] && g.parent_id !== selfId,
+  );
+}
