@@ -11,6 +11,8 @@ import {
   occurrencesQuery,
   overridesQuery,
   periodReviewQuery,
+  subtaskLogsQuery,
+  subtasksQuery,
   tasksQuery,
 } from "@/lib/queries";
 import { generatePeriodSummary } from "@/lib/review.functions";
@@ -21,6 +23,8 @@ import {
   computeStreak,
   formatTime,
   fromDateKey,
+  isSubtaskDone,
+  subtasksForDay,
   periodRange,
   PERIODS,
   todayKey,
@@ -30,9 +34,9 @@ import {
 export const Route = createFileRoute("/_authenticated/review")({
   head: () => ({
     meta: [
-      { title: "Reviews — DayFlow" },
+      { title: "Reviews — SuperFlow" },
       { name: "description", content: "Daily, weekly and monthly AI reviews of how your time went." },
-      { property: "og:title", content: "Reviews — DayFlow" },
+      { property: "og:title", content: "Reviews — SuperFlow" },
       {
         property: "og:description",
         content: "Daily, weekly and monthly AI reviews of how your time went.",
@@ -55,6 +59,8 @@ function ReviewPage() {
   const occurrences = useQuery(occurrencesQuery(addDays(range.start, -60), range.end));
   const categories = useQuery(categoriesQuery());
   const overrides = useQuery(overridesQuery());
+  const subtasks = useQuery(subtasksQuery());
+  const subtaskLogs = useQuery(subtaskLogsQuery(range.start, range.end));
   
   const review = useQuery(periodReviewQuery(period, range.start));
   const summarize = useServerFn(generatePeriodSummary);
@@ -90,6 +96,17 @@ function ReviewPage() {
     [tasks.data, occurrences.data, overrides.data, today],
   );
 
+  const todaySubtasks = useMemo(() => {
+    const items = buildDay(tasks.data ?? [], occurrences.data ?? [], today, overrides.data ?? []);
+    return items.flatMap((i) =>
+      subtasksForDay(subtasks.data ?? [], i.task.id, today).map((s) => ({
+        parent: i.task.title,
+        title: s.title,
+        done: isSubtaskDone(subtaskLogs.data ?? [], s.id, today),
+      })),
+    );
+  }, [tasks.data, occurrences.data, overrides.data, subtasks.data, subtaskLogs.data, today]);
+
   const generate = useMutation({
     mutationFn: async () =>
       summarize({
@@ -99,6 +116,7 @@ function ReviewPage() {
           tomorrowTasks: tomorrowItems.map((i) => i.task.title).slice(0, 60),
           
           streaks: streaks.slice(0, 30),
+          subtasks: todaySubtasks.slice(0, 60),
         },
       }),
     onSuccess: () =>

@@ -106,7 +106,7 @@ export const generatePeriodSummary = createServerFn({ method: "POST" })
     let text: string;
     try {
       const result = await generateText({
-        model: gateway("google/gemini-3.5-flash"),
+        model: gateway("google/gemini-3.6-flash"),
         system: SYSTEM[data.period],
         prompt: buildPrompt(data),
       });
