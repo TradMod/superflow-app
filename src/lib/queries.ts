@@ -8,8 +8,11 @@ import type {
   Occurrence,
   OverrideWithTasks,
   PeriodKind,
+  Subtask,
+  SubtaskLog,
   Task,
 } from "./dayflow";
+
 
 
 export const categoriesQuery = () =>
