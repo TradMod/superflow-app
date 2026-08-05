@@ -214,7 +214,18 @@ export function computeDayStats(
     byCategory: [...catMap.values()].sort((a, b) => b.minutes - a.minutes),
     missed: items.filter((i) => i.status !== "done").map((i) => i.task.title),
     completed: items.filter((i) => i.status === "done").map((i) => i.task.title),
+    notes: items
+      .filter((i) => (i.occurrence?.note ?? "").trim().length > 0)
+      .map((i) => ({ title: i.task.title, note: (i.occurrence?.note ?? "").trim() })),
+    efforts: items
+      .filter((i) => i.status === "done")
+      .map((i) => ({
+        title: i.task.title,
+        effort: i.occurrence?.effort ?? null,
+        minutes: i.occurrence?.minutes_spent ?? 0,
+      })),
   };
+
 }
 
 /**
