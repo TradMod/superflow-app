@@ -365,6 +365,8 @@ export function computeRangeStats(input: {
   const catMap = new Map<string, { name: string; minutes: number; done: number }>();
   const completed: string[] = [];
   const missed: string[] = [];
+  const notes: string[] = [];
+  const effortMap = new Map<string, { title: string; total: number; times: number; minutes: number }>();
   let planned = 0;
   let done = 0;
   let skipped = 0;
@@ -388,6 +390,16 @@ export function computeRangeStats(input: {
     for (const item of items) {
       if (typeof item.occurrence?.effort === "number") efforts.push(item.occurrence.effort);
     }
+    for (const e of stats.efforts) {
+      const entry = effortMap.get(e.title) ?? { title: e.title, total: 0, times: 0, minutes: 0 };
+      if (typeof e.effort === "number") {
+        entry.total += e.effort;
+        entry.times += 1;
+      }
+      entry.minutes += e.minutes;
+      effortMap.set(e.title, entry);
+    }
+    for (const n of stats.notes) notes.push(`${dateKey} · ${n.title}: ${n.note}`);
     for (const c of stats.byCategory) {
       const entry = catMap.get(c.name) ?? { name: c.name, minutes: 0, done: 0 };
       entry.minutes += c.minutes;
@@ -397,6 +409,7 @@ export function computeRangeStats(input: {
     completed.push(...stats.completed);
     missed.push(...stats.missed);
   }
+
 
   const habits = tasks
     .filter((t) => t.is_habit)
