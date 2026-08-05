@@ -171,7 +171,10 @@ export type DayStats = {
   byCategory: { name: string; minutes: number; done: number }[];
   missed: string[];
   completed: string[];
+  notes: { title: string; note: string }[];
+  efforts: { title: string; effort: number | null; minutes: number }[];
 };
+
 
 export function computeDayStats(
   items: DayItem[],
