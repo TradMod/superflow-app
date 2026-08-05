@@ -624,6 +624,32 @@ function GoalsPage() {
                 </p>
               )}
 
+              {possibleParents(all, draft.period, draft.id).length > 0 && (
+                <div className="space-y-1.5">
+                  <Label>Part of a bigger goal</Label>
+                  <Select
+                    value={draft.parent_id}
+                    onValueChange={(v) => setDraft({ ...draft, parent_id: v })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Standalone goal</SelectItem>
+                      {possibleParents(all, draft.period, draft.id).map((g) => (
+                        <SelectItem key={g.id} value={g.id}>
+                          {PERIOD_LABEL[g.period as GoalPeriod]} · {g.title}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">
+                    A parent goal's progress is the average of its sub-goals.
+                  </p>
+                </div>
+              )}
+
+
               <div className="space-y-1.5">
                 <Label>Category</Label>
                 <Select
