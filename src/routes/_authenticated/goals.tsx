@@ -503,6 +503,15 @@ function GoalsPage() {
             {goal.status === "achieved" ? "Reopen goal" : "Mark achieved"}
           </Button>
         </div>
+
+        {children.length > 0 && (
+          <div className="mt-4 border-l-2 border-border pl-3">
+            <p className="mb-2 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
+              Sub-goals
+            </p>
+            <ul className="space-y-3">{children.map((c) => renderGoal(c))}</ul>
+          </div>
+        )}
       </li>
     );
   };
@@ -530,14 +539,14 @@ function GoalsPage() {
       ) : (
         <div className="space-y-8">
           {GOAL_PERIODS.map((p) => {
-            const items = active.filter((g) => g.period === p);
+            const items = active.filter((g) => g.period === p && !g.parent_id);
             if (items.length === 0) return null;
             return (
               <section key={p}>
                 <h2 className="mb-2 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
                   {PERIOD_LABEL[p]}
                 </h2>
-                <ul className="space-y-3">{items.map(renderGoal)}</ul>
+                <ul className="space-y-3">{items.map((g) => renderGoal(g))}</ul>
               </section>
             );
           })}
@@ -546,7 +555,7 @@ function GoalsPage() {
               <h2 className="mb-2 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
                 Achieved
               </h2>
-              <ul className="space-y-3">{achieved.map(renderGoal)}</ul>
+              <ul className="space-y-3">{achieved.filter((g) => !g.parent_id).map((g) => renderGoal(g))}</ul>
             </section>
           )}
         </div>
