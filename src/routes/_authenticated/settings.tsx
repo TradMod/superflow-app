@@ -13,10 +13,10 @@ import { categoriesQuery, currentUserId, profileQuery } from "@/lib/queries";
 export const Route = createFileRoute("/_authenticated/settings")({
   head: () => ({
     meta: [
-      { title: "Settings — DayFlow" },
-      { name: "description", content: "Manage your DayFlow profile and categories." },
-      { property: "og:title", content: "Settings — DayFlow" },
-      { property: "og:description", content: "Manage your DayFlow profile and categories." },
+      { title: "Settings — SuperFlow" },
+      { name: "description", content: "Manage your SuperFlow profile and categories." },
+      { property: "og:title", content: "Settings — SuperFlow" },
+      { property: "og:description", content: "Manage your SuperFlow profile and categories." },
     ],
   }),
   component: SettingsPage,

@@ -19,9 +19,9 @@ import { addDays, buildDay, computeDayStats, computeStreak, todayKey } from "@/l
 export const Route = createFileRoute("/_authenticated/insights")({
   head: () => ({
     meta: [
-      { title: "Insights — DayFlow" },
+      { title: "Insights — SuperFlow" },
       { name: "description", content: "Completion trends, streaks and where your hours go." },
-      { property: "og:title", content: "Insights — DayFlow" },
+      { property: "og:title", content: "Insights — SuperFlow" },
       { property: "og:description", content: "Completion trends, streaks and where your hours go." },
     ],
   }),
