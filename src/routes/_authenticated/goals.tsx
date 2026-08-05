@@ -281,7 +281,12 @@ function GoalsPage() {
     const isDaily = goal.period === "daily";
     const usesNumber = tracking === "numeric" || tracking === "both";
     const usesChecklist = tracking === "checklist" || tracking === "both";
-    const progress = goalProgress(goal, ms, logs, today);
+    const children = goalChildren(goal, all);
+    const progress =
+      children.length > 0
+        ? goalRollupProgress(goal, all, ms, logs, today)
+        : goalProgress(goal, ms, logs, today);
+
     const pace = goalPace(goal, progress);
     const left = daysLeft(goal.target_date);
     const category = (categories.data ?? []).find((c) => c.id === goal.category_id);
