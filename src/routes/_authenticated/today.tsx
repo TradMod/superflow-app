@@ -198,9 +198,46 @@ function TodayPage() {
 
   return (
     <AppShell
-      title={new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}
+      title={fromDateKey(today).toLocaleDateString(undefined, {
+        weekday: "long",
+        month: "long",
+        day: "numeric",
+      })}
       subtitle={`${stats.done} of ${stats.planned} done · ${stats.minutes} min logged`}
     >
+      <div className="mb-4 flex flex-wrap items-center gap-2">
+        <Button
+          variant="outline"
+          size="icon"
+          aria-label="Previous day"
+          onClick={() => setToday(addDays(today, -1))}
+        >
+          <ChevronLeft className="h-4 w-4" />
+        </Button>
+        <Button
+          variant="outline"
+          size="icon"
+          aria-label="Next day"
+          onClick={() => setToday(addDays(today, 1))}
+        >
+          <ChevronRight className="h-4 w-4" />
+        </Button>
+        <Input
+          type="date"
+          aria-label="Jump to date"
+          className="w-auto"
+          value={today}
+          onChange={(e) => e.target.value && setToday(e.target.value)}
+        />
+        {today !== realToday && (
+          <Button variant="ghost" size="sm" onClick={() => setToday(realToday)}>
+            Today
+          </Button>
+        )}
+        {isPast && <Badge variant="secondary">Past day · editable</Badge>}
+        {isFuture && <Badge variant="secondary">Planning ahead</Badge>}
+      </div>
+
       <div className="mb-6 rounded-2xl border border-border bg-card p-5">
         <div className="flex items-end justify-between">
           <div>
@@ -214,6 +251,26 @@ function TodayPage() {
         </div>
         <Progress value={stats.completionRate} className="mt-4" />
       </div>
+
+      <form
+        className="mb-4 flex gap-2"
+        onSubmit={(e) => {
+          e.preventDefault();
+          addOneOffTask.mutate(oneOff);
+        }}
+      >
+        <Input
+          value={oneOff}
+          aria-label="Add a task just for this day"
+          placeholder="Add a task just for this day…"
+          onChange={(e) => setOneOff(e.target.value)}
+        />
+        <Button type="submit" variant="outline" disabled={addOneOffTask.isPending}>
+          <Plus className="h-4 w-4" />
+          Add
+        </Button>
+      </form>
+
 
       {loading ? (
         <p className="text-sm text-muted-foreground">Loading your day…</p>
