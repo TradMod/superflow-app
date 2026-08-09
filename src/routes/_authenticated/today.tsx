@@ -1,7 +1,17 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
-import { Check, Clock, Flame, Plus, Repeat, SkipForward, X } from "lucide-react";
+import {
+  Check,
+  ChevronLeft,
+  ChevronRight,
+  Clock,
+  Flame,
+  Plus,
+  Repeat,
+  SkipForward,
+  X,
+} from "lucide-react";
 import { toast } from "sonner";
 import { AppShell } from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
@@ -34,6 +44,7 @@ import {
   computeDayStats,
   computeStreak,
   formatTime,
+  fromDateKey,
   isSubtaskDone,
   subtasksForDay,
   todayKey,
@@ -57,11 +68,13 @@ export const Route = createFileRoute("/_authenticated/today")({
 
 function TodayPage() {
   const qc = useQueryClient();
-  const today = todayKey();
-  const from = addDays(today, -60);
+  const realToday = todayKey();
+  const [today, setToday] = useState(realToday);
+  const from = addDays(today < realToday ? today : realToday, -60);
+  const to = today > realToday ? today : realToday;
 
   const tasks = useQuery(tasksQuery());
-  const occurrences = useQuery(occurrencesQuery(from, today));
+  const occurrences = useQuery(occurrencesQuery(from, to));
   const categories = useQuery(categoriesQuery());
   const overrides = useQuery(overridesQuery());
   const subtasks = useQuery(subtasksQuery());
@@ -71,6 +84,10 @@ function TodayPage() {
   const [adding, setAdding] = useState<string | null>(null);
   const [newTitle, setNewTitle] = useState("");
   const [newRecurring, setNewRecurring] = useState(false);
+  const [oneOff, setOneOff] = useState("");
+
+  const isPast = today < realToday;
+  const isFuture = today > realToday;
 
   const items = useMemo(
     () => buildDay(tasks.data ?? [], occurrences.data ?? [], today, overrides.data ?? []),
@@ -80,6 +97,27 @@ function TodayPage() {
     () => computeDayStats(items, categories.data ?? [], today),
     [items, categories.data, today],
   );
+
+  const addOneOffTask = useMutation({
+    mutationFn: async (title: string) => {
+      if (!title.trim()) throw new Error("Name the task first.");
+      const userId = await currentUserId();
+      const { error } = await supabase.from("tasks").insert({
+        user_id: userId,
+        title: title.trim().slice(0, 140),
+        repeat_kind: "none",
+        start_date: today,
+        end_date: today,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["tasks"] });
+      setOneOff("");
+      toast.success("Task added to this day.");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
 
   const setStatus = useMutation({
     mutationFn: async (input: {
@@ -171,9 +209,46 @@ function TodayPage() {
 
   return (
     <AppShell
-      title={new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}
+      title={fromDateKey(today).toLocaleDateString(undefined, {
+        weekday: "long",
+        month: "long",
+        day: "numeric",
+      })}
       subtitle={`${stats.done} of ${stats.planned} done · ${stats.minutes} min logged`}
     >
+      <div className="mb-4 flex flex-wrap items-center gap-2">
+        <Button
+          variant="outline"
+          size="icon"
+          aria-label="Previous day"
+          onClick={() => setToday(addDays(today, -1))}
+        >
+          <ChevronLeft className="h-4 w-4" />
+        </Button>
+        <Button
+          variant="outline"
+          size="icon"
+          aria-label="Next day"
+          onClick={() => setToday(addDays(today, 1))}
+        >
+          <ChevronRight className="h-4 w-4" />
+        </Button>
+        <Input
+          type="date"
+          aria-label="Jump to date"
+          className="w-auto"
+          value={today}
+          onChange={(e) => e.target.value && setToday(e.target.value)}
+        />
+        {today !== realToday && (
+          <Button variant="ghost" size="sm" onClick={() => setToday(realToday)}>
+            Today
+          </Button>
+        )}
+        {isPast && <Badge variant="secondary">Past day · editable</Badge>}
+        {isFuture && <Badge variant="secondary">Planning ahead</Badge>}
+      </div>
+
       <div className="mb-6 rounded-2xl border border-border bg-card p-5">
         <div className="flex items-end justify-between">
           <div>
@@ -187,6 +262,26 @@ function TodayPage() {
         </div>
         <Progress value={stats.completionRate} className="mt-4" />
       </div>
+
+      <form
+        className="mb-4 flex gap-2"
+        onSubmit={(e) => {
+          e.preventDefault();
+          addOneOffTask.mutate(oneOff);
+        }}
+      >
+        <Input
+          value={oneOff}
+          aria-label="Add a task just for this day"
+          placeholder="Add a task just for this day…"
+          onChange={(e) => setOneOff(e.target.value)}
+        />
+        <Button type="submit" variant="outline" disabled={addOneOffTask.isPending}>
+          <Plus className="h-4 w-4" />
+          Add
+        </Button>
+      </form>
+
 
       {loading ? (
         <p className="text-sm text-muted-foreground">Loading your day…</p>
