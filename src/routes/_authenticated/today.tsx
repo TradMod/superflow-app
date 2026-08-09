@@ -57,11 +57,13 @@ export const Route = createFileRoute("/_authenticated/today")({
 
 function TodayPage() {
   const qc = useQueryClient();
-  const today = todayKey();
-  const from = addDays(today, -60);
+  const realToday = todayKey();
+  const [today, setToday] = useState(realToday);
+  const from = addDays(today < realToday ? today : realToday, -60);
+  const to = today > realToday ? today : realToday;
 
   const tasks = useQuery(tasksQuery());
-  const occurrences = useQuery(occurrencesQuery(from, today));
+  const occurrences = useQuery(occurrencesQuery(from, to));
   const categories = useQuery(categoriesQuery());
   const overrides = useQuery(overridesQuery());
   const subtasks = useQuery(subtasksQuery());
@@ -71,6 +73,10 @@ function TodayPage() {
   const [adding, setAdding] = useState<string | null>(null);
   const [newTitle, setNewTitle] = useState("");
   const [newRecurring, setNewRecurring] = useState(false);
+  const [oneOff, setOneOff] = useState("");
+
+  const isPast = today < realToday;
+  const isFuture = today > realToday;
 
   const items = useMemo(
     () => buildDay(tasks.data ?? [], occurrences.data ?? [], today, overrides.data ?? []),
@@ -80,6 +86,27 @@ function TodayPage() {
     () => computeDayStats(items, categories.data ?? [], today),
     [items, categories.data, today],
   );
+
+  const addOneOffTask = useMutation({
+    mutationFn: async (title: string) => {
+      if (!title.trim()) throw new Error("Name the task first.");
+      const userId = await currentUserId();
+      const { error } = await supabase.from("tasks").insert({
+        user_id: userId,
+        title: title.trim().slice(0, 140),
+        repeat_kind: "none",
+        start_date: today,
+        end_date: today,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["tasks"] });
+      setOneOff("");
+      toast.success("Task added to this day.");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
 
   const setStatus = useMutation({
     mutationFn: async (input: {
