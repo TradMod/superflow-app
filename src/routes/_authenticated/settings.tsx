@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
-import { LogOut, Plus, Trash2 } from "lucide-react";
+import { Check, LogOut, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { AppShell } from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
@@ -9,6 +9,32 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { categoriesQuery, currentUserId, profileQuery } from "@/lib/queries";
+import { useTheme, type ThemeName } from "@/lib/theme";
+import { cn } from "@/lib/utils";
+
+const THEMES: {
+  value: ThemeName;
+  label: string;
+  description: string;
+  preview: string;
+  swatches: string[];
+}[] = [
+  {
+    value: "dark",
+    label: "Midnight",
+    description: "Premium near-black with soft glass depth.",
+    preview: "linear-gradient(140deg, #17171c 0%, #201f27 55%, #2a222c 100%)",
+    swatches: ["#17171c", "#2a2731", "#f0a8c6"],
+  },
+  {
+    value: "pink",
+    label: "Mauve Ink",
+    description: "Light greige base with a muted mauve accent.",
+    preview: "linear-gradient(140deg, #f7f5f7 0%, #ece5ea 55%, #dccbd6 100%)",
+    swatches: ["#f7f5f7", "#e6dfe6", "#a5748c"],
+  },
+];
+
 
 export const Route = createFileRoute("/_authenticated/settings")({
   head: () => ({
