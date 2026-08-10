@@ -83,9 +83,50 @@ function SettingsPage() {
   }
 
   return (
-    <AppShell title="Settings" subtitle="Your profile and categories">
-      <div className="rounded-2xl border border-border bg-card p-5">
-        <h2 className="mb-3 font-display text-2xl">Profile</h2>
+    <AppShell title="Settings" subtitle="Appearance, profile and categories">
+      <div className="panel sheen p-5">
+        <h2 className="font-display text-lg font-semibold">Appearance</h2>
+        <p className="mt-1 text-sm text-muted-foreground">Pick the look that suits you.</p>
+        <div className="mt-4 grid gap-3 sm:grid-cols-2">
+          {THEMES.map((t) => (
+            <button
+              key={t.value}
+              type="button"
+              onClick={() => setTheme(t.value)}
+              aria-pressed={theme === t.value}
+              className={cn(
+                "group rounded-2xl border p-3 text-left transition-all duration-200",
+                theme === t.value
+                  ? "border-primary/60 shadow-lift"
+                  : "border-border hover:border-primary/40",
+              )}
+            >
+              <span
+                className="flex h-20 items-end rounded-xl p-3"
+                style={{ background: t.preview }}
+              >
+                <span className="flex gap-1.5">
+                  {t.swatches.map((c) => (
+                    <span
+                      key={c}
+                      className="h-4 w-4 rounded-full ring-1 ring-black/10"
+                      style={{ background: c }}
+                    />
+                  ))}
+                </span>
+              </span>
+              <span className="mt-3 flex items-center justify-between">
+                <span className="text-sm font-medium">{t.label}</span>
+                {theme === t.value ? <Check className="h-4 w-4 text-primary" /> : null}
+              </span>
+              <span className="mt-0.5 block text-xs text-muted-foreground">{t.description}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="panel sheen mt-4 p-5">
+        <h2 className="mb-3 font-display text-lg font-semibold">Profile</h2>
         <div className="space-y-1.5">
           <Label htmlFor="name">Display name</Label>
           <Input id="name" maxLength={80} value={name} onChange={(e) => setName(e.target.value)} />
@@ -95,11 +136,14 @@ function SettingsPage() {
         </Button>
       </div>
 
-      <div className="mt-4 rounded-2xl border border-border bg-card p-5">
-        <h2 className="mb-3 font-display text-2xl">Categories</h2>
+      <div className="panel sheen mt-4 p-5">
+        <h2 className="mb-3 font-display text-lg font-semibold">Categories</h2>
         <ul className="space-y-2">
           {(categories.data ?? []).map((c) => (
-            <li key={c.id} className="flex items-center justify-between rounded-xl border border-border p-3 text-sm">
+            <li
+              key={c.id}
+              className="flex items-center justify-between rounded-xl border border-border/70 bg-secondary/30 p-3 text-sm"
+            >
               <span>{c.name}</span>
               <Button
                 variant="ghost"
