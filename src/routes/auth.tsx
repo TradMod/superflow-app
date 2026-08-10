@@ -83,21 +83,23 @@ function AuthPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background px-5 py-10">
+    <div className="flex min-h-screen items-center justify-center px-5 py-10">
       <div className="w-full max-w-sm">
-        <Link to="/" className="mb-8 block text-center font-display text-3xl">
-          SuperFlow
+        <Link to="/" className="mb-8 flex items-center justify-center gap-2.5">
+          <span className="h-9 w-9 rounded-2xl bg-linear-to-br from-primary to-primary-glow shadow-soft" />
+          <span className="font-display text-2xl font-semibold tracking-tight">SuperFlow</span>
         </Link>
 
         {sent ? (
-          <div className="rounded-2xl border border-border bg-card p-6 text-center">
-            <h2 className="text-xl">Check your email</h2>
+          <div className="panel sheen p-6 text-center">
+            <h2 className="text-lg font-semibold">Check your email</h2>
             <p className="mt-2 text-sm text-muted-foreground">
               We sent a confirmation link to {email}. Click it to finish setting up your account.
             </p>
           </div>
         ) : (
-          <div className="rounded-2xl border border-border bg-card p-6">
+          <div className="panel sheen p-6">
+
             <Button variant="outline" className="w-full" onClick={google} type="button">
               Continue with Google
             </Button>
