@@ -249,11 +249,11 @@ function TodayPage() {
         {isFuture && <Badge variant="secondary">Planning ahead</Badge>}
       </div>
 
-      <div className="mb-6 rounded-2xl border border-border bg-card p-5">
+      <div className="mb-6 panel sheen p-5">
         <div className="flex items-end justify-between">
           <div>
             <p className="text-sm text-muted-foreground">Day progress</p>
-            <p className="font-display text-4xl">{stats.completionRate}%</p>
+            <p className="font-display text-lg font-semibold font-semibold font-semibold">{stats.completionRate}%</p>
           </div>
           <div className="text-right text-sm text-muted-foreground">
             <p>{stats.minutes} minutes logged</p>
@@ -304,7 +304,7 @@ function TodayPage() {
             return (
               <li
                 key={item.task.id}
-                className={`rounded-xl border border-border bg-card p-4 transition-colors ${
+                className={`panel sheen p-4 transition-colors ${
                   item.status === "done" ? "opacity-70" : ""
                 }`}
               >

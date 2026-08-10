@@ -61,7 +61,7 @@ function CalendarPage() {
         >
           <ChevronLeft className="h-4 w-4" />
         </Button>
-        <p className="font-display text-2xl">
+        <p className="font-display text-lg font-semibold">
           {cursor.toLocaleDateString(undefined, { month: "long", year: "numeric" })}
         </p>
         <Button
@@ -110,7 +110,7 @@ function CalendarPage() {
       </div>
 
       <div className="mt-6">
-        <h2 className="mb-3 font-display text-2xl">
+        <h2 className="mb-3 font-display text-lg font-semibold">
           {fromDateKey(selected).toLocaleDateString(undefined, {
             weekday: "long",
             month: "long",
@@ -138,7 +138,7 @@ function CalendarPage() {
             {selectedItems.map((item) => (
               <li
                 key={item.task.id}
-                className="flex items-center justify-between gap-3 rounded-xl border border-border bg-card p-3 text-sm"
+                className="flex items-center justify-between gap-3 panel sheen p-3 text-sm"
               >
                 <span>{item.task.title}</span>
                 <span className="text-xs text-muted-foreground">

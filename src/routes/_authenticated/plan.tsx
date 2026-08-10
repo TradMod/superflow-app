@@ -299,7 +299,7 @@ function PlanPage() {
             return (
               <li
                 key={task.id}
-                className="flex items-start gap-3 rounded-xl border border-border bg-card p-4"
+                className="flex items-start gap-3 panel sheen p-4"
               >
                 <div className="min-w-0 flex-1">
                   <p className="font-medium">{task.title}</p>

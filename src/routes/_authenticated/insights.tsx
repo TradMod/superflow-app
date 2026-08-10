@@ -78,7 +78,7 @@ function InsightsPage() {
 
   return (
     <AppShell title="Insights" subtitle="The last two weeks at a glance">
-      <div className="rounded-2xl border border-border bg-card p-5">
+      <div className="panel sheen p-5">
         <h2 className="mb-4 text-sm font-semibold uppercase tracking-widest text-muted-foreground">
           Completion rate
         </h2>
@@ -108,7 +108,7 @@ function InsightsPage() {
         </div>
       </div>
 
-      <div className="mt-4 rounded-2xl border border-border bg-card p-5">
+      <div className="mt-4 panel sheen p-5">
         <h2 className="mb-4 text-sm font-semibold uppercase tracking-widest text-muted-foreground">
           Minutes per day
         </h2>
@@ -133,7 +133,7 @@ function InsightsPage() {
       </div>
 
       <div className="mt-4 grid gap-4 md:grid-cols-2">
-        <div className="rounded-2xl border border-border bg-card p-5">
+        <div className="panel sheen p-5">
           <h2 className="mb-3 text-sm font-semibold uppercase tracking-widest text-muted-foreground">
             Time by category
           </h2>
@@ -151,7 +151,7 @@ function InsightsPage() {
           )}
         </div>
 
-        <div className="rounded-2xl border border-border bg-card p-5">
+        <div className="panel sheen p-5">
           <h2 className="mb-3 text-sm font-semibold uppercase tracking-widest text-muted-foreground">
             Habit streaks
           </h2>
