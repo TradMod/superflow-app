@@ -50,6 +50,7 @@ export const Route = createFileRoute("/_authenticated/settings")({
 
 function SettingsPage() {
   const qc = useQueryClient();
+  const { theme, setTheme } = useTheme();
   const navigate = useNavigate();
   const profile = useQuery(profileQuery());
   const categories = useQuery(categoriesQuery());
