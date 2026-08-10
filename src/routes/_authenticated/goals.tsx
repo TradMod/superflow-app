@@ -295,7 +295,7 @@ function GoalsPage() {
     const streak = isDaily ? dailyGoalStreak(goal, logs, today) : 0;
 
     return (
-      <li key={goal.id} className="rounded-2xl border border-border bg-card p-5">
+      <li key={goal.id} className="panel sheen p-5">
         <div className="flex items-start gap-3">
           <div className="min-w-0 flex-1">
             <p className="font-medium">{goal.title}</p>

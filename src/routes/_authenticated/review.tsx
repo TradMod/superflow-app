@@ -129,7 +129,7 @@ function ReviewPage() {
 
   return (
     <AppShell title="Reviews" subtitle={stats.label}>
-      <div className="mb-5 inline-flex rounded-xl border border-border bg-card p-1">
+      <div className="mb-5 inline-flex panel sheen p-1">
         {PERIODS.map((p) => (
           <button
             key={p}
@@ -151,9 +151,9 @@ function ReviewPage() {
           { label: "Minutes", value: stats.minutes },
           { label: "Avg effort", value: stats.avgEffort ?? "—" },
         ].map((s) => (
-          <div key={s.label} className="rounded-2xl border border-border bg-card p-4">
+          <div key={s.label} className="panel sheen p-4">
             <p className="text-xs uppercase tracking-widest text-muted-foreground">{s.label}</p>
-            <p className="font-display text-3xl">{s.value}</p>
+            <p className="font-display text-2xl font-semibold">{s.value}</p>
           </div>
         ))}
       </div>
@@ -171,7 +171,7 @@ function ReviewPage() {
       )}
 
       {period !== "day" && stats.perDay.length > 0 && (
-        <div className="mt-4 rounded-2xl border border-border bg-card p-5">
+        <div className="mt-4 panel sheen p-5">
           <h2 className="mb-3 text-sm font-semibold uppercase tracking-widest text-muted-foreground">
             Day by day
           </h2>
@@ -194,7 +194,7 @@ function ReviewPage() {
       )}
 
       {stats.byCategory.length > 0 && (
-        <div className="mt-4 rounded-2xl border border-border bg-card p-5">
+        <div className="mt-4 panel sheen p-5">
           <h2 className="mb-3 text-sm font-semibold uppercase tracking-widest text-muted-foreground">
             Where the time went
           </h2>
@@ -211,9 +211,9 @@ function ReviewPage() {
         </div>
       )}
 
-      <div className="mt-4 rounded-2xl border border-border bg-card p-5">
+      <div className="mt-4 panel sheen p-5">
         <div className="mb-3 flex items-center justify-between gap-3">
-          <h2 className="font-display text-2xl">AI {PERIOD_LABEL[period].toLowerCase()} review</h2>
+          <h2 className="font-display text-lg font-semibold">AI {PERIOD_LABEL[period].toLowerCase()} review</h2>
           <Button
             variant={review.data?.summary ? "outline" : "default"}
             disabled={generate.isPending || stats.planned === 0}
@@ -235,7 +235,7 @@ function ReviewPage() {
       </div>
 
       {period !== "day" && stats.habits.length > 0 && (
-        <div className="mt-4 rounded-2xl border border-border bg-card p-5">
+        <div className="mt-4 panel sheen p-5">
           <h2 className="mb-3 text-sm font-semibold uppercase tracking-widest text-muted-foreground">
             Habit consistency
           </h2>
@@ -253,7 +253,7 @@ function ReviewPage() {
       )}
 
       {streaks.length > 0 && (
-        <div className="mt-4 rounded-2xl border border-border bg-card p-5">
+        <div className="mt-4 panel sheen p-5">
           <h2 className="mb-3 text-sm font-semibold uppercase tracking-widest text-muted-foreground">
             Live streaks
           </h2>
@@ -268,8 +268,8 @@ function ReviewPage() {
         </div>
       )}
 
-      <div className="mt-4 rounded-2xl border border-border bg-card p-5">
-        <h2 className="mb-3 font-display text-2xl">On the table tomorrow</h2>
+      <div className="mt-4 panel sheen p-5">
+        <h2 className="mb-3 font-display text-lg font-semibold">On the table tomorrow</h2>
         {tomorrowItems.length === 0 ? (
           <p className="text-sm text-muted-foreground">Nothing scheduled yet for tomorrow.</p>
         ) : (
