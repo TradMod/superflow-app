@@ -153,7 +153,7 @@ function ReviewPage() {
         ].map((s) => (
           <div key={s.label} className="panel sheen p-4">
             <p className="text-xs uppercase tracking-widest text-muted-foreground">{s.label}</p>
-            <p className="font-display text-lg font-semibold font-semibold">{s.value}</p>
+            <p className="font-display text-2xl font-semibold">{s.value}</p>
           </div>
         ))}
       </div>

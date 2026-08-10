@@ -253,7 +253,7 @@ function TodayPage() {
         <div className="flex items-end justify-between">
           <div>
             <p className="text-sm text-muted-foreground">Day progress</p>
-            <p className="font-display text-lg font-semibold font-semibold font-semibold">{stats.completionRate}%</p>
+            <p className="font-display text-3xl font-semibold">{stats.completionRate}%</p>
           </div>
           <div className="text-right text-sm text-muted-foreground">
             <p>{stats.minutes} minutes logged</p>
